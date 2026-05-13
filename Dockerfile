@@ -48,6 +48,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
+# prisma.config.ts imports "dotenv/config" — Next.js standalone tracing doesn't
+# include it (no app code imports it), so copy it explicitly here.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/dotenv ./node_modules/dotenv
+
 USER nextjs
 
 EXPOSE 3000
