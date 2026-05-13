@@ -109,20 +109,38 @@ Subtilités à gérer dès le départ :
 - **Phase 3** (1 sem) : sources/citations + média + sauvegardes automatisées
 - **Phase 4** (optionnel) : import/export GEDCOM, gazetteer de lieux, timeline transversale
 
-## Prochaines actions (reprise)
+## État scaffold (2026-05-14)
 
-1. **Scaffold Next.js sur le Mac** dans `/Volumes/Extreme SSD/genealogie` :
-   ```bash
-   npx create-next-app@latest . --typescript --tailwind --app --no-src-dir
-   ```
-2. **Initialiser Prisma** + écrire le schema initial (modèles ci-dessus)
-3. **Auth.js + Google provider** + adapter Prisma
-4. **Créer le Google Cloud OAuth Client** (Console Google Cloud, redirect URI = `https://chazeau-genealogie.fr/api/auth/callback/google`)
-5. **`.env.example`** documenté, `.gitignore` strict, pre-commit hook anti-`.env`
-6. **Premier commit + push** sur `chazeaua-conseil/genealogie`
-7. **docker-compose.yml** (cf. plan ci-dessus) + `Dockerfile` multi-stage Next.js
-8. **Déploiement initial** sur VPS, vérification HTTPS
-9. **Sauvegardes** : cron `pg_dump` + offsite
+- ✅ **Next.js 16.2.6** scaffold (App Router, TS, Tailwind v4, Turbopack)
+- ✅ **shadcn/ui** initialisé (preset base-nova)
+- ✅ **Prisma 7.8** + `@prisma/adapter-pg` (pg driver) — schema.prisma complet
+- ✅ **Auth.js v5** + Google provider + adapter Prisma + ALLOWED_EMAILS
+- ✅ **Page d'accueil** avec sign-in / sign-out via Server Actions
+- ✅ **Dockerfile** multi-stage (Node 22 alpine, standalone output)
+- ✅ **docker-compose.yml** production avec labels Traefik (`mytlschallenge`, redirect www, n8n_default external)
+- ✅ **`.env.example`** documenté, `.env` local généré, `.gitignore` couvre `.env*` + `lib/generated/`
+- ✅ **`next build`** validé OK
+- ✅ **Initial commit pushé** sur [chazeaua-conseil/genealogie](https://github.com/chazeaua-conseil/genealogie)
+
+## Prochaines actions (dans l'ordre)
+
+1. **Créer l'OAuth Client Google** (manuel, navigateur) :
+   - Google Cloud Console → "OAuth client ID" type Web application
+   - Authorized redirect URIs :
+     - `http://localhost:3000/api/auth/callback/google` (dev)
+     - `https://chazeau-genealogie.fr/api/auth/callback/google` (prod)
+   - OAuth consent screen : External, Testing mode, ajouter les emails autorisés dans "Test users"
+   - Récupérer `AUTH_GOOGLE_ID` et `AUTH_GOOGLE_SECRET`
+2. **Dev local** (Postgres en Docker sur le Mac, migration, premier sign-in)
+3. **Déploiement VPS** :
+   - `git pull` dans `/docker/genealogie/` sur le VPS (à initialiser)
+   - Créer `/docker/genealogie/.env` avec les vraies valeurs (POSTGRES_PASSWORD, AUTH_*, DATABASE_URL, ALLOWED_EMAILS, AUTH_URL=https://chazeau-genealogie.fr)
+   - `docker compose build && docker compose up -d db`
+   - `docker compose run --rm app npx prisma migrate deploy`
+   - `docker compose up -d`
+   - Vérifier HTTPS sur `https://chazeau-genealogie.fr` (Traefik génère le cert)
+4. **Sauvegardes** pg_dump cron + offsite (Backblaze B2 ou autre)
+5. **Phase 1** : pages CRUD personnes/familles/événements + import CSV
 
 ## Filets de sécurité & rappels
 

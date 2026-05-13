@@ -1,0 +1,67 @@
+# Production deployment — to be placed at /docker/genealogie/docker-compose.yml on the VPS.
+# Connects to the existing Traefik (project "n8n", network "n8n_default") which holds 80/443.
+#
+# First-time deploy (from the host, in this directory):
+#   1. Place this file + a populated .env at /docker/genealogie/
+#   2. docker compose build
+#   3. docker compose up -d db && docker compose run --rm app npx prisma migrate deploy
+#   4. docker compose up -d
+#
+# Subsequent deploys (after `git pull`):
+#   docker compose build && docker compose up -d
+#   (and `docker compose run --rm app npx prisma migrate deploy` when the schema changes)
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - n8n_default
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      # Routing on chazeau-genealogie.fr (and www → root)
+      - traefik.http.routers.genealogie.rule=Host(`chazeau-genealogie.fr`) || Host(`www.chazeau-genealogie.fr`)
+      - traefik.http.routers.genealogie.entrypoints=web,websecure
+      - traefik.http.routers.genealogie.tls=true
+      - traefik.http.routers.genealogie.tls.certresolver=mytlschallenge
+      - traefik.http.services.genealogie.loadbalancer.server.port=3000
+      # www → root permanent redirect
+      - traefik.http.middlewares.genealogie-wwwredirect.redirectregex.regex=^https?://www\.chazeau-genealogie\.fr/(.*)
+      - traefik.http.middlewares.genealogie-wwwredirect.redirectregex.replacement=https://chazeau-genealogie.fr/$${1}
+      - traefik.http.middlewares.genealogie-wwwredirect.redirectregex.permanent=true
+      - traefik.http.routers.genealogie.middlewares=genealogie-wwwredirect@docker
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: genealogie
+      POSTGRES_USER: genealogie
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genealogie"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  n8n_default:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  db_data:
