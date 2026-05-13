@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Généalogie Chazeau
 
-## Getting Started
+Application web familiale pour gérer plusieurs arbres généalogiques.
 
-First, run the development server:
+Voir [PLAN.md](./PLAN.md) pour la vision complète, les décisions techniques et l'état d'avancement.
+
+## Stack
+
+- **Next.js 16** (App Router) + TypeScript + Turbopack
+- **Tailwind v4** + **shadcn/ui**
+- **Prisma 7** + driver adapter `@prisma/adapter-pg`
+- **PostgreSQL 16**
+- **Auth.js v5** + provider Google + adapter Prisma
+- **Docker Compose** + **Traefik** (reverse proxy partagé en prod)
+
+## Développement local
+
+Pré-requis : Node 22+, Docker (pour Postgres en local), un OAuth Client Google.
 
 ```bash
+# 1. Copier et configurer les variables d'environnement
+cp .env.example .env
+# Remplir DATABASE_URL, AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET
+
+# 2. Lancer Postgres en local (à venir : docker-compose.dev.yml)
+# Pour l'instant : docker run -d --name genealogie-db -p 5432:5432 \
+#   -e POSTGRES_DB=genealogie -e POSTGRES_USER=genealogie \
+#   -e POSTGRES_PASSWORD=devpassword postgres:16-alpine
+
+# 3. Appliquer le schéma
+npx prisma migrate dev
+
+# 4. Lancer le serveur de dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'application sera accessible sur [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Déploiement
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Cible : VPS Hostinger (Ubuntu 24.04), intégration dans la stack Traefik existante.
 
-## Learn More
+URL de production : [https://chazeau-genealogie.fr](https://chazeau-genealogie.fr)
 
-To learn more about Next.js, take a look at the following resources:
+Détails du plan de déploiement dans [PLAN.md](./PLAN.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sécurité — repo public
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Ce repo est public. Les données généalogiques (arbres, personnes, photos) vivent
+**uniquement dans la base Postgres** sur le VPS — jamais dans le code.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Ne jamais commiter :
+- Le fichier `.env` (gitignored)
+- Des dumps de la base de données
+- Des exports CSV de recherches familiales
+- Des médias personnels (photos d'actes, scans…)
