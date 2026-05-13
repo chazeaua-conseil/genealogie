@@ -69,19 +69,29 @@ export default async function PersonsPage() {
       ) : (
         <ul className="divide-y border rounded-lg">
           {persons.map((p) => (
-            <li key={p.id} className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <span
-                  className="text-muted-foreground w-6 text-center"
-                  aria-label={p.sex}
-                >
-                  {sexLabel[p.sex]}
+            <li key={p.id}>
+              <Link
+                href={`/persons/${p.id}/edit`}
+                className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-muted-foreground w-6 text-center"
+                    aria-label={p.sex}
+                  >
+                    {sexLabel[p.sex]}
+                  </span>
+                  <span className="font-medium">{displayName(p)}</span>
+                  {p.nickname && (
+                    <span className="text-sm text-muted-foreground">
+                      « {p.nickname} »
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(p.createdAt).toLocaleDateString("fr-FR")}
                 </span>
-                <span className="font-medium">{displayName(p)}</span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {new Date(p.createdAt).toLocaleDateString("fr-FR")}
-              </span>
+              </Link>
             </li>
           ))}
         </ul>
