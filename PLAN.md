@@ -109,38 +109,87 @@ Subtilités à gérer dès le départ :
 - **Phase 3** (1 sem) : sources/citations + média + sauvegardes automatisées
 - **Phase 4** (optionnel) : import/export GEDCOM, gazetteer de lieux, timeline transversale
 
-## État scaffold (2026-05-14)
+## État (2026-05-14) — App déployée et opérationnelle
 
 - ✅ **Next.js 16.2.6** scaffold (App Router, TS, Tailwind v4, Turbopack)
 - ✅ **shadcn/ui** initialisé (preset base-nova)
-- ✅ **Prisma 7.8** + `@prisma/adapter-pg` (pg driver) — schema.prisma complet
-- ✅ **Auth.js v5** + Google provider + adapter Prisma + ALLOWED_EMAILS
-- ✅ **Page d'accueil** avec sign-in / sign-out via Server Actions
-- ✅ **Dockerfile** multi-stage (Node 22 alpine, standalone output)
-- ✅ **docker-compose.yml** production avec labels Traefik (`mytlschallenge`, redirect www, n8n_default external)
-- ✅ **`.env.example`** documenté, `.env` local généré, `.gitignore` couvre `.env*` + `lib/generated/`
-- ✅ **`next build`** validé OK
-- ✅ **Initial commit pushé** sur [chazeaua-conseil/genealogie](https://github.com/chazeaua-conseil/genealogie)
+- ✅ **Prisma 7.8** + `@prisma/adapter-pg` — schema complet, migration `init` appliquée
+- ✅ **Auth.js v5** + Google provider + adapter Prisma + ALLOWED_EMAILS (vide en prod, à régler)
+- ✅ **Dockerfile** multi-stage (Node 22 alpine, output: standalone)
+- ✅ **docker-compose.yml** prod avec 3 services :
+  - `app` (target=runner) — l'app Next.js, branchée sur `n8n_default` et `internal`
+  - `db` (postgres:16-alpine) — isolé sur `internal` uniquement
+  - `migrator` (target=builder, profile=migrate) — one-shot pour `prisma migrate deploy`
+- ✅ **Premier déploiement OK** :
+  - https://chazeau-genealogie.fr répond 200 (HTTP/2)
+  - Cert Let's Encrypt valide (R12, jusqu'au 11 août 2026)
+  - Sign-in Google fonctionnel end-to-end (testé en local et en prod)
+  - DB Postgres avec toutes les tables, vide
+- ✅ **Sauvegardes** : `scripts/backup.sh` + cron quotidien 03:17 UTC, rotation 30 jours
 
-## Prochaines actions (dans l'ordre)
+## Points d'attention découverts pendant le déploiement
 
-1. **Créer l'OAuth Client Google** (manuel, navigateur) :
-   - Google Cloud Console → "OAuth client ID" type Web application
-   - Authorized redirect URIs :
-     - `http://localhost:3000/api/auth/callback/google` (dev)
-     - `https://chazeau-genealogie.fr/api/auth/callback/google` (prod)
-   - OAuth consent screen : External, Testing mode, ajouter les emails autorisés dans "Test users"
-   - Récupérer `AUTH_GOOGLE_ID` et `AUTH_GOOGLE_SECRET`
-2. **Dev local** (Postgres en Docker sur le Mac, migration, premier sign-in)
-3. **Déploiement VPS** :
-   - `git pull` dans `/docker/genealogie/` sur le VPS (à initialiser)
-   - Créer `/docker/genealogie/.env` avec les vraies valeurs (POSTGRES_PASSWORD, AUTH_*, DATABASE_URL, ALLOWED_EMAILS, AUTH_URL=https://chazeau-genealogie.fr)
-   - `docker compose build && docker compose up -d db`
-   - `docker compose run --rm app npx prisma migrate deploy`
-   - `docker compose up -d`
-   - Vérifier HTTPS sur `https://chazeau-genealogie.fr` (Traefik génère le cert)
-4. **Sauvegardes** pg_dump cron + offsite (Backblaze B2 ou autre)
-5. **Phase 1** : pages CRUD personnes/familles/événements + import CSV
+- **Système nginx Hostinger** : a démarré tout seul le 2026-05-12 et a pris le port 80, bloquant Traefik silencieusement. Désactivé via `systemctl mask nginx`. Si un autre service système prend 80/443 après un reboot Hostinger, refaire pareil. À vérifier après chaque reboot du VPS.
+- **Prisma 7 breaking change** : `datasource db { url = env(...) }` n'est plus supporté dans `schema.prisma` — la connection URL passe par `prisma.config.ts`.
+- **Migrations en Docker** : le standalone Next.js ne trace pas les deps de la CLI Prisma. Solution : service `migrator` séparé qui utilise le stage `builder` complet (déjà avec full node_modules).
+
+## Procédures opérationnelles
+
+### Déploiement d'un changement applicatif
+
+```bash
+# Local: commit + push (depuis Mac, /Volumes/Extreme SSD/genealogie)
+git push
+
+# VPS:
+ssh achazeau@187.77.163.66
+cd ~/genealogie
+git pull
+docker compose build app
+docker compose up -d --no-deps app
+```
+
+### Déploiement avec changement de schéma DB
+
+```bash
+# Sur le VPS:
+cd ~/genealogie
+git pull
+docker compose --profile migrate build migrator
+docker compose --profile migrate run --rm migrator   # applique les migrations
+docker compose build app
+docker compose up -d --no-deps app
+```
+
+### Restauration d'un backup
+
+```bash
+ssh achazeau@187.77.163.66
+cd ~/genealogie
+gunzip -c ~/genealogie-backups/genealogie-YYYYMMDD-HHMMSS.sql.gz | \
+  docker compose exec -T db psql -U genealogie -d genealogie
+```
+
+## Prochaines actions
+
+1. **Verrouiller `ALLOWED_EMAILS` en prod** : éditer `/home/achazeau/genealogie/.env` pour mettre la liste des Gmail autorisés (ton email + celui de ton père), puis `docker compose up -d --no-deps app`. Aujourd'hui Google Cloud "Testing mode" est la seule barrière.
+2. **Offsite backup** (à mettre en place) : actuellement les dumps vivent uniquement sur le VPS. Si le VPS meurt, on perd tout. Options : Backblaze B2 + rclone (10 Go gratuits), rsync vers le Mac/SSD externe, ou autre cloud. À acter.
+3. **Phase 1 — CRUD applicatif** :
+   - Création/listing/édition d'arbres et de membres (TreeMember)
+   - Page personne éditable inline (nom, événements, relations)
+   - Liste/recherche de personnes avec filtres (nom, période, lieu)
+   - Import CSV (les données source sont en tableur)
+4. **Phase 2** : viz pedigree ascendant en SVG + ajout rapide en contexte
+5. **Phase 3** : sources/citations + média
+6. **Phase 4** (optionnel) : import/export GEDCOM, gazetteer de lieux
+
+## Identifiants et URLs
+
+- App : https://chazeau-genealogie.fr
+- Repo : https://github.com/chazeaua-conseil/genealogie
+- VPS : `ssh achazeau@187.77.163.66`
+- Compose : `/home/achazeau/genealogie/docker-compose.yml`
+- Backups : `/home/achazeau/genealogie-backups/`
 
 ## Filets de sécurité & rappels
 
