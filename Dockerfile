@@ -44,13 +44,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Prisma schema + config so we can run `prisma migrate deploy` from this container
+# Prisma schema + config so we can run `prisma migrate deploy` from this container.
+# (The prisma CLI, @prisma/*, dotenv and tsx are pulled into the standalone bundle
+# via `outputFileTracingIncludes` in next.config.ts.)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
-
-# prisma.config.ts imports "dotenv/config" — Next.js standalone tracing doesn't
-# include it (no app code imports it), so copy it explicitly here.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/dotenv ./node_modules/dotenv
 
 USER nextjs
 
