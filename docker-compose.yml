@@ -2,20 +2,23 @@
 # Connects to the existing Traefik (project "n8n", network "n8n_default") which holds 80/443.
 #
 # First-time deploy (from the host, in this directory):
-#   1. Place this file + a populated .env at /docker/genealogie/
+#   1. Place this file + a populated .env in the project directory
 #   2. docker compose build
-#   3. docker compose up -d db && docker compose run --rm app npx prisma migrate deploy
-#   4. docker compose up -d
+#   3. docker compose up -d db
+#   4. docker compose --profile migrate run --rm migrator
+#   5. docker compose up -d
 #
 # Subsequent deploys (after `git pull`):
 #   docker compose build && docker compose up -d
-#   (and `docker compose run --rm app npx prisma migrate deploy` when the schema changes)
+#   When the schema changes:
+#     docker compose --profile migrate run --rm migrator
 
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     restart: always
     env_file:
       - .env
@@ -39,6 +42,26 @@ services:
       - traefik.http.middlewares.genealogie-wwwredirect.redirectregex.replacement=https://chazeau-genealogie.fr/$${1}
       - traefik.http.middlewares.genealogie-wwwredirect.redirectregex.permanent=true
       - traefik.http.routers.genealogie.middlewares=genealogie-wwwredirect@docker
+
+  # One-shot service for running database migrations. Uses the builder stage
+  # of the Dockerfile (which has the full deps including the prisma CLI and
+  # all its transitive dependencies) instead of the lean runner stage.
+  # Trigger with:
+  #   docker compose --profile migrate run --rm migrator
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    profiles: [migrate]
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    command: ["npx", "prisma", "migrate", "deploy"]
 
   db:
     image: postgres:16-alpine
