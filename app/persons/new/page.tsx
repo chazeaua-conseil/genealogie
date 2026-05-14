@@ -1,30 +1,70 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createPerson } from "../actions";
 
-export default async function NewPersonPage() {
+function displayName(p: {
+  givenName: string | null;
+  surname: string | null;
+}) {
+  const parts = [p.givenName, p.surname].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : "(sans nom)";
+}
+
+export default async function NewPersonPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ siblingOf?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
+
+  const { siblingOf } = await searchParams;
+
+  // Resolve sibling reference (also checks tree membership) for the UI label.
+  const siblingRef = siblingOf
+    ? await prisma.person.findFirst({
+        where: {
+          id: siblingOf,
+          tree: { members: { some: { userId: session.user.id } } },
+        },
+      })
+    : null;
+
+  const backHref = siblingRef ? `/persons/${siblingRef.id}/edit` : "/persons";
 
   return (
     <main className="min-h-screen max-w-xl mx-auto p-8">
       <div className="mb-6">
         <Link
-          href="/persons"
+          href={backHref}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           ← Retour
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight mt-2">
-          Nouvelle personne
+          {siblingRef
+            ? `Nouveau frère/sœur de ${displayName(siblingRef)}`
+            : "Nouvelle personne"}
         </h1>
+        {siblingRef && (
+          <p className="text-sm text-muted-foreground mt-1">
+            La nouvelle personne sera ajoutée à la même famille (mêmes parents
+            si déjà définis).
+          </p>
+        )}
       </div>
 
       <form action={createPerson} className="space-y-5">
+        {/* Carry the sibling link through the form so the action can apply it. */}
+        {siblingRef && (
+          <input type="hidden" name="siblingOf" value={siblingRef.id} />
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="givenName">Prénoms</Label>
           <Input
@@ -66,15 +106,13 @@ export default async function NewPersonPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Au moins un prénom ou un nom est requis.
+          Au moins un prénom ou un nom est requis. Les détails (naissance,
+          décès, parents…) se complètent dans l&apos;édition.
         </p>
 
         <div className="flex gap-3 pt-2">
           <Button type="submit">Enregistrer</Button>
-          <Link
-            href="/persons"
-            className={buttonVariants({ variant: "ghost" })}
-          >
+          <Link href={backHref} className={buttonVariants({ variant: "ghost" })}>
             Annuler
           </Link>
         </div>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
 import { updatePerson } from "../actions";
 import { DeleteButton } from "./DeleteButton";
+import { PlaceAutocomplete } from "./PlaceAutocomplete";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,9 @@ const dateQualifierOptions = [
   { value: "ESTIMATED", label: "Estimée" },
 ];
 
+const selectClass =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs";
+
 function isoDate(d: Date | null | undefined) {
   return d ? d.toISOString().slice(0, 10) : "";
 }
@@ -28,9 +32,6 @@ function displayName(p: {
   return parts.length > 0 ? parts.join(" ") : "(sans nom)";
 }
 
-const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs";
-
 export default async function EditPersonPage({
   params,
 }: {
@@ -39,12 +40,41 @@ export default async function EditPersonPage({
   const { id } = await params;
   const { person } = await requirePersonForCurrentUser(id);
 
+  // Birth + death events
   const events = await prisma.event.findMany({
     where: { personId: id, type: { in: ["BIRTH", "DEATH"] } },
     include: { place: true },
   });
   const birth = events.find((e) => e.type === "BIRTH");
   const death = events.find((e) => e.type === "DEATH");
+
+  // All other persons in the tree (for parent pickers)
+  const otherPersons = await prisma.person.findMany({
+    where: { treeId: person.treeId, NOT: { id } },
+    orderBy: [{ surname: "asc" }, { givenName: "asc" }],
+    select: { id: true, givenName: true, surname: true, sex: true },
+  });
+
+  // Find this person's family of birth (if any) — gives us the current parents
+  // and siblings.
+  const familyChild = await prisma.familyChild.findFirst({
+    where: { childId: id },
+    include: {
+      family: {
+        include: {
+          spouseA: true,
+          spouseB: true,
+          children: {
+            include: { child: true },
+            orderBy: { child: { surname: "asc" } },
+          },
+        },
+      },
+    },
+  });
+  const family = familyChild?.family ?? null;
+  const siblings =
+    family?.children.filter((fc) => fc.childId !== id) ?? [];
 
   return (
     <main className="min-h-screen max-w-2xl mx-auto p-8">
@@ -193,7 +223,78 @@ export default async function EditPersonPage({
           placeText={death?.place?.name ?? ""}
         />
 
-        <div className="flex gap-3 pt-2 border-t pt-6">
+        {/* Parents */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            Parents
+          </h2>
+          {otherPersons.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Crée d&apos;abord d&apos;autres personnes pour pouvoir les
+              rattacher comme parents.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <ParentSelect
+                name="parentAId"
+                label="Parent 1"
+                currentId={family?.spouseAId ?? null}
+                persons={otherPersons}
+              />
+              <ParentSelect
+                name="parentBId"
+                label="Parent 2"
+                currentId={family?.spouseBId ?? null}
+                persons={otherPersons}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Frères et sœurs (read-only ici, ajout via lien) */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              Frères et sœurs
+            </h2>
+            <Link
+              href={`/persons/new?siblingOf=${person.id}`}
+              className="text-sm text-primary hover:underline"
+            >
+              + Ajouter
+            </Link>
+          </div>
+          {siblings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {family
+                ? "Aucun frère ni sœur enregistré."
+                : "Les frères et sœurs apparaîtront ici une fois qu'au moins un parent est défini."}
+            </p>
+          ) : (
+            <ul className="rounded-md border divide-y">
+              {siblings.map((fc) => (
+                <li key={fc.id}>
+                  <Link
+                    href={`/persons/${fc.child.id}/edit`}
+                    className="flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50"
+                  >
+                    <span>{displayName(fc.child)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      Modifier →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-muted-foreground">
+            L&apos;ajout d&apos;un frère/sœur crée une nouvelle personne liée à
+            la même famille que toi. Si tu n&apos;as pas encore de parents
+            définis, une famille vide est créée pour vous regrouper.
+          </p>
+        </section>
+
+        <div className="flex gap-3 border-t pt-6">
           <Button type="submit">Enregistrer</Button>
           <Link
             href="/persons"
@@ -204,6 +305,42 @@ export default async function EditPersonPage({
         </div>
       </form>
     </main>
+  );
+}
+
+function ParentSelect({
+  name,
+  label,
+  currentId,
+  persons,
+}: {
+  name: string;
+  label: string;
+  currentId: string | null;
+  persons: Array<{
+    id: string;
+    givenName: string | null;
+    surname: string | null;
+    sex: "MALE" | "FEMALE" | "UNKNOWN";
+  }>;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={name}>{label}</Label>
+      <select
+        id={name}
+        name={name}
+        defaultValue={currentId ?? ""}
+        className={selectClass}
+      >
+        <option value="">— Aucun —</option>
+        {persons.map((p) => (
+          <option key={p.id} value={p.id}>
+            {displayName(p)}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -277,17 +414,8 @@ function EventSection({
           />
         </div>
         <div className="col-span-7 space-y-1.5">
-          <Label htmlFor={`${prefix}.placeText`}>Lieu</Label>
-          <Input
-            id={`${prefix}.placeText`}
-            name={`${prefix}.placeText`}
-            placeholder="Commune, département, pays"
-            defaultValue={placeText}
-          />
-          <p className="text-xs text-muted-foreground">
-            Saisie libre pour l&apos;instant — l&apos;autocomplétion via OSM
-            arrive dans le slice suivant.
-          </p>
+          <Label>Lieu</Label>
+          <PlaceAutocomplete fieldPrefix={prefix} defaultValue={placeText} />
         </div>
       </div>
     </section>
