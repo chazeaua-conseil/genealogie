@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { deletePerson } from "../actions";
+import { deletePerson } from "../[id]/actions";
 
 export function DeleteButton({ id, label }: { id: string; label: string }) {
   return (
@@ -18,7 +18,7 @@ export function DeleteButton({ id, label }: { id: string; label: string }) {
       }}
     >
       <Button type="submit" variant="destructive" size="sm">
-        Supprimer la personne
+        Supprimer
       </Button>
     </form>
   );

@@ -13,12 +13,19 @@ type PlaceSuggestion = {
   longitude: number;
 };
 
+/**
+ * Commune autocomplete backed by Nominatim. Filters by `countryCode` (ISO
+ * alpha-2 lowercase). On selection, fills hidden inputs that carry the
+ * structured data the Server Action uses to enrich the Place row.
+ */
 export function PlaceAutocomplete({
   fieldPrefix,
   defaultValue = "",
+  countryCode,
 }: {
   fieldPrefix: string;
   defaultValue?: string;
+  countryCode: string;
 }) {
   const [text, setText] = useState(defaultValue);
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
@@ -28,6 +35,12 @@ export function PlaceAutocomplete({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inFlightRef = useRef<AbortController | null>(null);
+
+  // Clear selection if country changes — the chosen suggestion is no longer
+  // necessarily valid for the new country.
+  useEffect(() => {
+    setSelected(null);
+  }, [countryCode]);
 
   useEffect(() => {
     if (selected && selected.displayName === text) {
@@ -46,10 +59,11 @@ export function PlaceAutocomplete({
       inFlightRef.current = ac;
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/places/search?q=${encodeURIComponent(text)}`,
-          { signal: ac.signal },
-        );
+        const params = new URLSearchParams({ q: text });
+        if (countryCode) params.set("cc", countryCode);
+        const res = await fetch(`/api/places/search?${params}`, {
+          signal: ac.signal,
+        });
         if (!res.ok) {
           setResults([]);
           setOpen(false);
@@ -59,7 +73,7 @@ export function PlaceAutocomplete({
         setResults(data);
         setOpen(data.length > 0);
       } catch {
-        // aborted or network error — silently ignore
+        // aborted or network error — ignored
       } finally {
         setLoading(false);
       }
@@ -68,7 +82,7 @@ export function PlaceAutocomplete({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [text, selected]);
+  }, [text, selected, countryCode]);
 
   useEffect(() => {
     function onDocMouseDown(e: MouseEvent) {
@@ -101,10 +115,10 @@ export function PlaceAutocomplete({
         onFocus={() => {
           if (results.length > 0) setOpen(true);
         }}
-        placeholder="Commune, département, pays"
+        placeholder="Commune, ville…"
         autoComplete="off"
       />
-      {/* Structured place data — only sent when a suggestion was picked. */}
+      {/* Structured data — only sent when a suggestion was picked. */}
       <input
         type="hidden"
         name={`${fieldPrefix}.placeName`}
@@ -137,7 +151,7 @@ export function PlaceAutocomplete({
       />
 
       {loading && (
-        <p className="absolute right-2 top-2 text-xs text-muted-foreground">
+        <p className="absolute right-3 top-2 text-xs text-muted-foreground">
           …
         </p>
       )}

@@ -43,12 +43,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
+  // Country filter (ISO 3166-1 alpha-2, lowercased).
+  const cc = (req.nextUrl.searchParams.get("cc") ?? "").trim().toLowerCase();
+  const ccSafe = /^[a-z]{2}$/.test(cc) ? cc : null;
+
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("q", q);
   url.searchParams.set("format", "json");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("limit", "8");
   url.searchParams.set("accept-language", "fr");
+  if (ccSafe) url.searchParams.set("countrycodes", ccSafe);
 
   let res: Response;
   try {

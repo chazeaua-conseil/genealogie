@@ -1,0 +1,197 @@
+/**
+ * ISO 3166-1 country list (alpha-2 codes lowercased to match Nominatim).
+ * Names are in French, sorted alphabetically except France pinned first.
+ * Curated set — about 110 countries covering the vast majority of French
+ * genealogical contexts (Europe, Maghreb, ex-AOF/AEF, ex-Indochine,
+ * Amériques, Moyen-Orient).
+ */
+
+export type Country = {
+  code: string;
+  name: string;
+};
+
+const REST: Country[] = [
+  { code: "af", name: "Afghanistan" },
+  { code: "za", name: "Afrique du Sud" },
+  { code: "al", name: "Albanie" },
+  { code: "dz", name: "Algérie" },
+  { code: "de", name: "Allemagne" },
+  { code: "ad", name: "Andorre" },
+  { code: "ao", name: "Angola" },
+  { code: "ar", name: "Argentine" },
+  { code: "am", name: "Arménie" },
+  { code: "au", name: "Australie" },
+  { code: "at", name: "Autriche" },
+  { code: "az", name: "Azerbaïdjan" },
+  { code: "bd", name: "Bangladesh" },
+  { code: "be", name: "Belgique" },
+  { code: "bj", name: "Bénin" },
+  { code: "bo", name: "Bolivie" },
+  { code: "ba", name: "Bosnie-Herzégovine" },
+  { code: "br", name: "Brésil" },
+  { code: "bg", name: "Bulgarie" },
+  { code: "bf", name: "Burkina Faso" },
+  { code: "bi", name: "Burundi" },
+  { code: "kh", name: "Cambodge" },
+  { code: "cm", name: "Cameroun" },
+  { code: "ca", name: "Canada" },
+  { code: "cv", name: "Cap-Vert" },
+  { code: "cf", name: "Centrafrique" },
+  { code: "cl", name: "Chili" },
+  { code: "cn", name: "Chine" },
+  { code: "cy", name: "Chypre" },
+  { code: "co", name: "Colombie" },
+  { code: "km", name: "Comores" },
+  { code: "cg", name: "Congo" },
+  { code: "cd", name: "Congo (Rép. Dém.)" },
+  { code: "kr", name: "Corée du Sud" },
+  { code: "kp", name: "Corée du Nord" },
+  { code: "cr", name: "Costa Rica" },
+  { code: "ci", name: "Côte d'Ivoire" },
+  { code: "hr", name: "Croatie" },
+  { code: "cu", name: "Cuba" },
+  { code: "dk", name: "Danemark" },
+  { code: "dj", name: "Djibouti" },
+  { code: "do", name: "Dominicaine (Rép.)" },
+  { code: "eg", name: "Égypte" },
+  { code: "ae", name: "Émirats arabes unis" },
+  { code: "ec", name: "Équateur" },
+  { code: "er", name: "Érythrée" },
+  { code: "es", name: "Espagne" },
+  { code: "ee", name: "Estonie" },
+  { code: "us", name: "États-Unis" },
+  { code: "et", name: "Éthiopie" },
+  { code: "fi", name: "Finlande" },
+  { code: "ga", name: "Gabon" },
+  { code: "gm", name: "Gambie" },
+  { code: "ge", name: "Géorgie" },
+  { code: "gh", name: "Ghana" },
+  { code: "gr", name: "Grèce" },
+  { code: "gt", name: "Guatemala" },
+  { code: "gn", name: "Guinée" },
+  { code: "gw", name: "Guinée-Bissau" },
+  { code: "gq", name: "Guinée équatoriale" },
+  { code: "ht", name: "Haïti" },
+  { code: "hn", name: "Honduras" },
+  { code: "hu", name: "Hongrie" },
+  { code: "in", name: "Inde" },
+  { code: "id", name: "Indonésie" },
+  { code: "iq", name: "Irak" },
+  { code: "ir", name: "Iran" },
+  { code: "ie", name: "Irlande" },
+  { code: "is", name: "Islande" },
+  { code: "il", name: "Israël" },
+  { code: "it", name: "Italie" },
+  { code: "jm", name: "Jamaïque" },
+  { code: "jp", name: "Japon" },
+  { code: "jo", name: "Jordanie" },
+  { code: "kz", name: "Kazakhstan" },
+  { code: "ke", name: "Kenya" },
+  { code: "kg", name: "Kirghizistan" },
+  { code: "xk", name: "Kosovo" },
+  { code: "la", name: "Laos" },
+  { code: "lv", name: "Lettonie" },
+  { code: "lb", name: "Liban" },
+  { code: "ly", name: "Libye" },
+  { code: "lt", name: "Lituanie" },
+  { code: "lu", name: "Luxembourg" },
+  { code: "mk", name: "Macédoine du Nord" },
+  { code: "mg", name: "Madagascar" },
+  { code: "my", name: "Malaisie" },
+  { code: "ml", name: "Mali" },
+  { code: "mt", name: "Malte" },
+  { code: "ma", name: "Maroc" },
+  { code: "mu", name: "Maurice" },
+  { code: "mr", name: "Mauritanie" },
+  { code: "mx", name: "Mexique" },
+  { code: "md", name: "Moldavie" },
+  { code: "mc", name: "Monaco" },
+  { code: "mn", name: "Mongolie" },
+  { code: "me", name: "Monténégro" },
+  { code: "mz", name: "Mozambique" },
+  { code: "mm", name: "Myanmar (Birmanie)" },
+  { code: "na", name: "Namibie" },
+  { code: "np", name: "Népal" },
+  { code: "ni", name: "Nicaragua" },
+  { code: "ne", name: "Niger" },
+  { code: "ng", name: "Nigeria" },
+  { code: "no", name: "Norvège" },
+  { code: "nz", name: "Nouvelle-Zélande" },
+  { code: "om", name: "Oman" },
+  { code: "ug", name: "Ouganda" },
+  { code: "uz", name: "Ouzbékistan" },
+  { code: "pk", name: "Pakistan" },
+  { code: "pa", name: "Panama" },
+  { code: "py", name: "Paraguay" },
+  { code: "nl", name: "Pays-Bas" },
+  { code: "pe", name: "Pérou" },
+  { code: "ph", name: "Philippines" },
+  { code: "pl", name: "Pologne" },
+  { code: "pt", name: "Portugal" },
+  { code: "qa", name: "Qatar" },
+  { code: "ro", name: "Roumanie" },
+  { code: "gb", name: "Royaume-Uni" },
+  { code: "ru", name: "Russie" },
+  { code: "rw", name: "Rwanda" },
+  { code: "sv", name: "Salvador" },
+  { code: "sa", name: "Arabie saoudite" },
+  { code: "sn", name: "Sénégal" },
+  { code: "rs", name: "Serbie" },
+  { code: "sc", name: "Seychelles" },
+  { code: "sl", name: "Sierra Leone" },
+  { code: "sg", name: "Singapour" },
+  { code: "sk", name: "Slovaquie" },
+  { code: "si", name: "Slovénie" },
+  { code: "so", name: "Somalie" },
+  { code: "sd", name: "Soudan" },
+  { code: "lk", name: "Sri Lanka" },
+  { code: "se", name: "Suède" },
+  { code: "ch", name: "Suisse" },
+  { code: "sr", name: "Suriname" },
+  { code: "sy", name: "Syrie" },
+  { code: "tj", name: "Tadjikistan" },
+  { code: "tw", name: "Taïwan" },
+  { code: "tz", name: "Tanzanie" },
+  { code: "td", name: "Tchad" },
+  { code: "cz", name: "Tchéquie" },
+  { code: "th", name: "Thaïlande" },
+  { code: "tl", name: "Timor oriental" },
+  { code: "tg", name: "Togo" },
+  { code: "tn", name: "Tunisie" },
+  { code: "tm", name: "Turkménistan" },
+  { code: "tr", name: "Turquie" },
+  { code: "ua", name: "Ukraine" },
+  { code: "uy", name: "Uruguay" },
+  { code: "ve", name: "Venezuela" },
+  { code: "vn", name: "Vietnam" },
+  { code: "ye", name: "Yémen" },
+  { code: "zm", name: "Zambie" },
+  { code: "zw", name: "Zimbabwe" },
+];
+
+REST.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+
+export const DEFAULT_COUNTRY_CODE = "fr";
+
+export const COUNTRIES: Country[] = [
+  { code: "fr", name: "France" },
+  ...REST.filter((c) => c.code !== "fr"),
+];
+
+export function countryByCode(code: string): Country | undefined {
+  return COUNTRIES.find((c) => c.code === code);
+}
+
+export function countryNameByCode(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return countryByCode(code)?.name ?? null;
+}
+
+export function countryCodeByName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const norm = name.trim().toLowerCase();
+  return (
+    COUNTRIES.find((c) => c.name.toLowerCase() === norm)?.code ?? null
+  );
+}
