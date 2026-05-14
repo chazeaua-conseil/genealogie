@@ -60,7 +60,15 @@ export default async function EditPersonPage({
         >
           ← Retour à la liste
         </Link>
-        <DeleteButton id={person.id} label={displayName(person)} />
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/persons/${person.id}/tree`}
+            className="text-sm text-primary hover:underline"
+          >
+            Voir l&apos;arbre →
+          </Link>
+          <DeleteButton id={person.id} label={displayName(person)} />
+        </div>
       </div>
 
       <h1 className="text-2xl font-semibold tracking-tight mb-6">

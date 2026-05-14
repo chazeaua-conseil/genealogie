@@ -6,6 +6,7 @@ import {
   countryCodeByName,
   DEFAULT_COUNTRY_CODE,
 } from "@/lib/countries";
+import { DeceasedToggle } from "./DeceasedToggle";
 import { EventPlaceInput } from "./EventPlaceInput";
 
 const inputSelectClass =
@@ -145,7 +146,9 @@ export function PersonForm({
       </Section>
 
       <EventCard title="Naissance" prefix="birth" event={birth} />
-      <EventCard title="Décès" prefix="death" event={death} />
+      <DeceasedToggle defaultIsLiving={person.isLiving}>
+        <EventCard title="Décès" prefix="death" event={death} />
+      </DeceasedToggle>
 
       {showParents && (
         <Section title="Parents">

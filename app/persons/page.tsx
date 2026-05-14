@@ -69,28 +69,30 @@ export default async function PersonsPage() {
       ) : (
         <ul className="divide-y border rounded-lg">
           {persons.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
               <Link
                 href={`/persons/${p.id}/edit`}
-                className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-3 flex-1 min-w-0"
               >
-                <div className="flex items-center gap-3">
-                  <span
-                    className="text-muted-foreground w-6 text-center"
-                    aria-label={p.sex}
-                  >
-                    {sexLabel[p.sex]}
-                  </span>
-                  <span className="font-medium">{displayName(p)}</span>
-                  {p.nickname && (
-                    <span className="text-sm text-muted-foreground">
-                      « {p.nickname} »
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(p.createdAt).toLocaleDateString("fr-FR")}
+                <span
+                  className="text-muted-foreground w-6 text-center"
+                  aria-label={p.sex}
+                >
+                  {sexLabel[p.sex]}
                 </span>
+                <span className="font-medium truncate">{displayName(p)}</span>
+                {p.nickname && (
+                  <span className="text-sm text-muted-foreground truncate">
+                    « {p.nickname} »
+                  </span>
+                )}
+              </Link>
+              <Link
+                href={`/persons/${p.id}/tree`}
+                className="text-xs text-muted-foreground hover:text-foreground shrink-0 ml-3"
+                title="Voir l'arbre"
+              >
+                🌳
               </Link>
             </li>
           ))}

@@ -37,6 +37,20 @@ export const EventInputSchema = z.object({
 });
 export type EventInput = z.infer<typeof EventInputSchema>;
 
+// Empty event input — used to force-delete an existing event server-side
+// (e.g. when the user marks the person as living, any death event is wiped).
+export const EMPTY_EVENT_INPUT: EventInput = {
+  date: null,
+  placeText: null,
+  placeName: null,
+  placeDepartment: null,
+  placeRegion: null,
+  placeCountry: null,
+  placeCountryCode: null,
+  placeLatitude: null,
+  placeLongitude: null,
+};
+
 export const PersonCoreSchema = z.object({
   givenName: trimmedOptional(120),
   surname: trimmedOptional(120),

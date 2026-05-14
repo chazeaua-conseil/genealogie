@@ -6,6 +6,7 @@ import { getOrCreateDefaultTree } from "@/lib/tree";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  EMPTY_EVENT_INPUT,
   linkAsSibling,
   readEvent,
   readParents,
@@ -51,7 +52,10 @@ export async function createPerson(formData: FormData) {
 
   // Apply optional events and parents, exactly like updatePerson.
   const birth = readEvent("birth", formData);
-  const death = readEvent("death", formData);
+  // Skip the death event entirely if the person is marked as living.
+  const death = core.isLiving
+    ? EMPTY_EVENT_INPUT
+    : readEvent("death", formData);
   await upsertEvent(newPerson.id, tree.id, userId, "BIRTH", birth);
   await upsertEvent(newPerson.id, tree.id, userId, "DEATH", death);
 

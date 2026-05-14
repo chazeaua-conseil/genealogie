@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
 import {
+  EMPTY_EVENT_INPUT,
   readEvent,
   readParents,
   readPersonCore,
@@ -21,7 +22,11 @@ export async function updatePerson(id: string, formData: FormData) {
   }
 
   const birth = readEvent("birth", formData);
-  const death = readEvent("death", formData);
+  // A living person cannot have a death event — wipe it regardless of the
+  // (visually hidden) death.* form fields.
+  const death = core.isLiving
+    ? EMPTY_EVENT_INPUT
+    : readEvent("death", formData);
   const parents = readParents(formData);
 
   await prisma.person.update({
