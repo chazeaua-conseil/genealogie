@@ -1,9 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/auth";
+import { Plus, Network } from "lucide-react";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateDefaultTree } from "@/lib/tree";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 function displayName(p: {
   givenName: string | null;
@@ -13,11 +24,69 @@ function displayName(p: {
   return parts.length > 0 ? parts.join(" ") : "(sans nom)";
 }
 
-const sexLabel: Record<"MALE" | "FEMALE" | "UNKNOWN", string> = {
-  MALE: "♂",
-  FEMALE: "♀",
-  UNKNOWN: "·",
+function initials(p: { givenName: string | null; surname: string | null }) {
+  const a = p.givenName?.trim()?.[0] ?? "";
+  const b = p.surname?.trim()?.[0] ?? "";
+  const v = (a + b).toUpperCase();
+  return v || "?";
+}
+
+const sexConfig: Record<
+  "MALE" | "FEMALE" | "UNKNOWN",
+  { label: string; className: string }
+> = {
+  MALE: {
+    label: "Masculin",
+    className:
+      "bg-blue-50 text-blue-700 ring-blue-700/15 dark:bg-blue-950/40 dark:text-blue-300",
+  },
+  FEMALE: {
+    label: "Féminin",
+    className:
+      "bg-pink-50 text-pink-700 ring-pink-700/15 dark:bg-pink-950/40 dark:text-pink-300",
+  },
+  UNKNOWN: {
+    label: "Inconnu",
+    className:
+      "bg-muted text-muted-foreground ring-foreground/10",
+  },
 };
+
+function SexBadge({ sex }: { sex: "MALE" | "FEMALE" | "UNKNOWN" }) {
+  const c = sexConfig[sex];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+        c.className,
+      )}
+    >
+      {c.label}
+    </span>
+  );
+}
+
+function EventCell({
+  date,
+  place,
+}: {
+  date: Date | null;
+  place: { name: string } | null;
+}) {
+  if (!date && !place) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="leading-tight">
+      {date && <div className="text-sm">{date.getFullYear()}</div>}
+      {place && (
+        <div className="text-xs text-muted-foreground truncate max-w-[16rem]">
+          {place.name}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default async function PersonsPage() {
   const session = await auth();
@@ -27,76 +96,122 @@ export default async function PersonsPage() {
   const persons = await prisma.person.findMany({
     where: { treeId: tree.id },
     orderBy: [{ surname: "asc" }, { givenName: "asc" }],
+    include: {
+      events: {
+        where: { type: { in: ["BIRTH", "DEATH"] } },
+        include: { place: { select: { name: true } } },
+      },
+    },
   });
 
   return (
-    <main className="min-h-screen max-w-3xl mx-auto p-8">
-      <header className="flex items-baseline justify-between mb-2">
+    <main className="container mx-auto max-w-6xl px-6 py-8">
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{tree.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {persons.length} personne{persons.length > 1 ? "s" : ""}
+          <h1 className="text-3xl font-semibold tracking-tight">{tree.name}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {persons.length} personne{persons.length > 1 ? "s" : ""}{" "}
+            enregistrée{persons.length > 1 ? "s" : ""}
           </p>
         </div>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/" });
-          }}
+        <Link
+          href="/persons/new"
+          className={buttonVariants({ size: "default" })}
         >
-          <Button type="submit" variant="ghost" size="sm">
-            {session.user.email} · Déconnexion
-          </Button>
-        </form>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Nouvelle personne
+        </Link>
       </header>
 
-      <div className="flex justify-end mb-6">
-        <Link href="/persons/new" className={buttonVariants()}>
-          + Ajouter une personne
-        </Link>
-      </div>
-
       {persons.length === 0 ? (
-        <div className="border border-dashed rounded-lg py-16 text-center text-muted-foreground">
-          <p className="mb-4">Aucune personne pour le moment.</p>
+        <div className="rounded-lg border border-dashed bg-card p-16 text-center">
+          <p className="text-muted-foreground mb-4">
+            Aucune personne dans cet arbre pour le moment.
+          </p>
           <Link
             href="/persons/new"
             className={buttonVariants({ variant: "outline" })}
           >
+            <Plus className="h-4 w-4 mr-1.5" />
             Ajouter la première
           </Link>
         </div>
       ) : (
-        <ul className="divide-y border rounded-lg">
-          {persons.map((p) => (
-            <li key={p.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-              <Link
-                href={`/persons/${p.id}/edit`}
-                className="flex items-center gap-3 flex-1 min-w-0"
-              >
-                <span
-                  className="text-muted-foreground w-6 text-center"
-                  aria-label={p.sex}
-                >
-                  {sexLabel[p.sex]}
-                </span>
-                <span className="font-medium truncate">{displayName(p)}</span>
-                {p.nickname && (
-                  <span className="text-sm text-muted-foreground truncate">
-                    « {p.nickname} »
-                  </span>
-                )}
-              </Link>
-              <Link
-                href={`/persons/${p.id}/tree`}
-                className="text-xs text-muted-foreground hover:text-foreground shrink-0 ml-3"
-                title="Voir l'arbre"
-              >
-                🌳
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Personne</TableHead>
+                <TableHead className="w-28">Sexe</TableHead>
+                <TableHead>Naissance</TableHead>
+                <TableHead>Décès</TableHead>
+                <TableHead className="w-16 text-right">Arbre</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {persons.map((p) => {
+                const birth = p.events.find((e) => e.type === "BIRTH");
+                const death = p.events.find((e) => e.type === "DEATH");
+                return (
+                  <TableRow key={p.id} className="group">
+                    <TableCell>
+                      <Link
+                        href={`/persons/${p.id}/edit`}
+                        className="flex items-center gap-3"
+                      >
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarFallback className="text-xs font-medium">
+                            {initials(p)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate group-hover:text-primary transition-colors">
+                            {displayName(p)}
+                          </div>
+                          {p.nickname && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              « {p.nickname} »
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <SexBadge sex={p.sex} />
+                    </TableCell>
+                    <TableCell>
+                      <EventCell
+                        date={birth?.date ?? null}
+                        place={birth?.place ?? null}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {p.isLiving ? (
+                        <span className="text-xs text-muted-foreground italic">
+                          vivant·e
+                        </span>
+                      ) : (
+                        <EventCell
+                          date={death?.date ?? null}
+                          place={death?.place ?? null}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/persons/${p.id}/tree`}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title={`Voir l'arbre de ${displayName(p)}`}
+                      >
+                        <Network className="h-4 w-4" />
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </main>
   );

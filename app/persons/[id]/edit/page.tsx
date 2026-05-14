@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { Network } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
 import { updatePerson } from "../actions";
 import { DeleteButton } from "../../_components/DeleteButton";
-import { PersonForm } from "../../_components/PersonForm";
+import { MultiStepPersonForm } from "../../_components/MultiStepPersonForm";
+import { buttonVariants } from "@/components/ui/button";
 
 function displayName(p: {
   givenName: string | null;
@@ -42,8 +44,7 @@ export default async function EditPersonPage({
     },
   });
   const family = familyChild?.family ?? null;
-  const siblings =
-    family?.children.filter((fc) => fc.childId !== id) ?? [];
+  const siblings = family?.children.filter((fc) => fc.childId !== id) ?? [];
 
   const otherPersons = await prisma.person.findMany({
     where: { treeId: person.treeId, NOT: { id } },
@@ -52,7 +53,7 @@ export default async function EditPersonPage({
   });
 
   return (
-    <main className="min-h-screen max-w-3xl mx-auto p-8">
+    <main className="container mx-auto max-w-3xl px-6 py-8">
       <div className="mb-6 flex items-center justify-between">
         <Link
           href="/persons"
@@ -63,19 +64,20 @@ export default async function EditPersonPage({
         <div className="flex items-center gap-2">
           <Link
             href={`/persons/${person.id}/tree`}
-            className="text-sm text-primary hover:underline"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            Voir l&apos;arbre →
+            <Network className="h-4 w-4 mr-1.5" />
+            Voir l&apos;arbre
           </Link>
           <DeleteButton id={person.id} label={displayName(person)} />
         </div>
       </div>
 
-      <h1 className="text-2xl font-semibold tracking-tight mb-6">
+      <h1 className="text-3xl font-semibold tracking-tight mb-8">
         {displayName(person)}
       </h1>
 
-      <PersonForm
+      <MultiStepPersonForm
         action={updatePerson.bind(null, person.id)}
         person={{
           givenName: person.givenName,
@@ -91,10 +93,7 @@ export default async function EditPersonPage({
             ? {
                 date: birth.date,
                 place: birth.place
-                  ? {
-                      name: birth.place.name,
-                      country: birth.place.country,
-                    }
+                  ? { name: birth.place.name, country: birth.place.country }
                   : null,
               }
             : null
@@ -104,10 +103,7 @@ export default async function EditPersonPage({
             ? {
                 date: death.date,
                 place: death.place
-                  ? {
-                      name: death.place.name,
-                      country: death.place.country,
-                    }
+                  ? { name: death.place.name, country: death.place.country }
                   : null,
               }
             : null
@@ -115,11 +111,11 @@ export default async function EditPersonPage({
         parentAId={family?.spouseAId ?? null}
         parentBId={family?.spouseBId ?? null}
         otherPersons={otherPersons}
-        showParents={true}
+        showParents
         cancelHref="/persons"
       />
 
-      <section className="mt-8 rounded-lg border bg-card p-5 space-y-3">
+      <section className="mt-10 rounded-lg border bg-card p-5 shadow-sm space-y-3">
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
             Frères et sœurs

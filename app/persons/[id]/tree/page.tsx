@@ -102,8 +102,8 @@ export default async function TreePage({
   const rowsTotal = 2 ** ANCESTOR_GENERATIONS; // 8 rows for 3 generations
 
   return (
-    <main className="min-h-screen max-w-6xl mx-auto p-6">
-      <header className="mb-6 flex items-center justify-between gap-4">
+    <main className="container mx-auto max-w-6xl px-6 py-8">
+      <header className="mb-8 flex items-center justify-between gap-4">
         <div>
           <Link
             href="/persons"
@@ -111,10 +111,10 @@ export default async function TreePage({
           >
             ← Retour à la liste
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight mt-2">
+          <h1 className="text-3xl font-semibold tracking-tight mt-2">
             Arbre de {displayName(person)}
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-1.5">
             Pedigree ascendant sur {ANCESTOR_GENERATIONS} générations (
             {2 ** ANCESTOR_GENERATIONS} ancêtres au maximum). Clique sur un
             ancêtre pour explorer son arbre.

@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateDefaultTree } from "@/lib/tree";
 import { createPerson } from "../actions";
-import { PersonForm } from "../_components/PersonForm";
+import { MultiStepPersonForm } from "../_components/MultiStepPersonForm";
 
 function displayName(p: {
   givenName: string | null;
@@ -40,7 +40,7 @@ export default async function NewPersonPage({
   const backHref = siblingRef ? `/persons/${siblingRef.id}/edit` : "/persons";
 
   return (
-    <main className="min-h-screen max-w-3xl mx-auto p-8">
+    <main className="container mx-auto max-w-3xl px-6 py-8">
       <div className="mb-6">
         <Link
           href={backHref}
@@ -48,26 +48,28 @@ export default async function NewPersonPage({
         >
           ← Retour
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight mt-2">
+        <h1 className="text-3xl font-semibold tracking-tight mt-2">
           {siblingRef
             ? `Nouveau frère/sœur de ${displayName(siblingRef)}`
             : "Nouvelle personne"}
         </h1>
         {siblingRef && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Les parents seront automatiquement hérités. Tu pourras ajouter
-            d&apos;autres détails par la suite via la fiche.
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Les parents seront automatiquement hérités de la famille de{" "}
+            {displayName(siblingRef)}.
           </p>
         )}
       </div>
 
-      <PersonForm
+      <MultiStepPersonForm
         action={createPerson}
         otherPersons={otherPersons}
         showParents={!siblingRef}
         siblingOf={siblingRef?.id ?? null}
         cancelHref={backHref}
-        submitLabel={siblingRef ? "Créer le frère/sœur" : "Créer la personne"}
+        submitLabel={
+          siblingRef ? "Créer le frère/sœur" : "Créer la personne"
+        }
       />
     </main>
   );
