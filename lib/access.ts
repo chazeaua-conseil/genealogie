@@ -21,3 +21,35 @@ export async function requirePersonForCurrentUser(personId: string) {
 
   return { person, userId: session.user.id };
 }
+
+/**
+ * Asserts that the current session can edit the given family record.
+ * Optionally enforces that `expectedSpouseId` is one of the family's spouses
+ * (so a user can't pass an unrelated familyId to an action scoped under a
+ * person's URL).
+ */
+export async function requireFamilyForCurrentUser(
+  familyId: string,
+  expectedSpouseId?: string,
+) {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/");
+
+  const family = await prisma.family.findFirst({
+    where: {
+      id: familyId,
+      tree: { members: { some: { userId: session.user.id } } },
+    },
+  });
+  if (!family) redirect("/persons");
+
+  if (
+    expectedSpouseId &&
+    family.spouseAId !== expectedSpouseId &&
+    family.spouseBId !== expectedSpouseId
+  ) {
+    redirect(`/persons/${expectedSpouseId}/edit`);
+  }
+
+  return { family, userId: session.user.id };
+}

@@ -54,6 +54,19 @@ export async function updatePerson(id: string, formData: FormData) {
 
 export async function deletePerson(id: string) {
   const { person } = await requirePersonForCurrentUser(id);
+
+  // Detach the person from any Family they belong to as a spouse so the
+  // foreign key doesn't block the delete. Family records and shared children
+  // are preserved; the surviving spouse / children just lose the reference.
+  await prisma.family.updateMany({
+    where: { spouseAId: person.id },
+    data: { spouseAId: null },
+  });
+  await prisma.family.updateMany({
+    where: { spouseBId: person.id },
+    data: { spouseBId: null },
+  });
+
   await prisma.person.delete({ where: { id: person.id } });
   revalidatePath("/persons");
   redirect("/persons");

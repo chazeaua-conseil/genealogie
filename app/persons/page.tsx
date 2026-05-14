@@ -66,19 +66,29 @@ function SexBadge({ sex }: { sex: "MALE" | "FEMALE" | "UNKNOWN" }) {
   );
 }
 
+function formatFrDate(d: Date): string {
+  return new Intl.DateTimeFormat("fr-FR").format(d);
+}
+
 function EventCell({
   date,
   place,
+  emptyAsBlank = false,
 }: {
   date: Date | null;
   place: { name: string } | null;
+  emptyAsBlank?: boolean;
 }) {
   if (!date && !place) {
-    return <span className="text-xs text-muted-foreground">—</span>;
+    return emptyAsBlank ? (
+      <span />
+    ) : (
+      <span className="text-xs text-muted-foreground">—</span>
+    );
   }
   return (
     <div className="leading-tight">
-      {date && <div className="text-sm">{date.getFullYear()}</div>}
+      {date && <div className="text-sm">{formatFrDate(date)}</div>}
       {place && (
         <div className="text-xs text-muted-foreground truncate max-w-[16rem]">
           {place.name}
@@ -186,16 +196,11 @@ export default async function PersonsPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      {p.isLiving ? (
-                        <span className="text-xs text-muted-foreground italic">
-                          vivant·e
-                        </span>
-                      ) : (
-                        <EventCell
-                          date={death?.date ?? null}
-                          place={death?.place ?? null}
-                        />
-                      )}
+                      <EventCell
+                        date={death?.date ?? null}
+                        place={death?.place ?? null}
+                        emptyAsBlank
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <Link

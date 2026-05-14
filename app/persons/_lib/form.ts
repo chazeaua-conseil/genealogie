@@ -198,6 +198,46 @@ export async function upsertEvent(
   }
 }
 
+// Same shape as upsertEvent but scoped to a family (marriage / divorce).
+export async function upsertFamilyEvent(
+  familyId: string,
+  treeId: string,
+  userId: string,
+  type: "MARRIAGE" | "DIVORCE",
+  input: EventInput,
+) {
+  const date = parseDate(input.date);
+  const placeName = input.placeName ?? input.placeText;
+  const hasAnyValue = date !== null || placeName !== null;
+
+  const existing = await prisma.event.findFirst({
+    where: { familyId, type },
+  });
+
+  if (!hasAnyValue) {
+    if (existing) await prisma.event.delete({ where: { id: existing.id } });
+    return;
+  }
+
+  const place = await getOrCreatePlace(treeId, input, userId);
+
+  const data = { date, placeId: place?.id ?? null };
+
+  if (existing) {
+    await prisma.event.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.event.create({
+      data: {
+        ...data,
+        type,
+        treeId,
+        familyId,
+        createdById: userId,
+      },
+    });
+  }
+}
+
 export async function setParents(
   personId: string,
   treeId: string,
