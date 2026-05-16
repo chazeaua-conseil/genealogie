@@ -24,4 +24,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
+  events: {
+    // When a user signs in, consume any pending TreeInvitation matching
+    // their email and turn them into TreeMember rows. This is how a parent
+    // shares their tree with another family member — they invite by email,
+    // and the invitee auto-joins on their first sign-in (or next one).
+    async signIn({ user }) {
+      if (!user.id || !user.email) return;
+      const email = user.email.toLowerCase();
+      const invitations = await prisma.treeInvitation.findMany({
+        where: { email, acceptedAt: null },
+      });
+      for (const invite of invitations) {
+        const existing = await prisma.treeMember.findUnique({
+          where: { treeId_userId: { treeId: invite.treeId, userId: user.id } },
+        });
+        if (!existing) {
+          await prisma.treeMember.create({
+            data: {
+              treeId: invite.treeId,
+              userId: user.id,
+              role: invite.role,
+            },
+          });
+        }
+        await prisma.treeInvitation.update({
+          where: { id: invite.id },
+          data: { acceptedAt: new Date() },
+        });
+      }
+    },
+  },
 });

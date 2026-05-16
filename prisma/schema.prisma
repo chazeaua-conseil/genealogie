@@ -22,9 +22,10 @@ model User {
   emailVerified DateTime?
   image         String?
 
-  accounts    Account[]
-  sessions    Session[]
-  treeMembers TreeMember[]
+  accounts        Account[]
+  sessions        Session[]
+  treeMembers     TreeMember[]
+  invitationsSent TreeInvitation[] @relation("TreeInvitedBy")
 
   // Audit trail across entities
   personsCreated   Person[]   @relation("PersonCreatedBy")
@@ -91,6 +92,7 @@ model Tree {
   description String?
 
   members      TreeMember[]
+  invitations  TreeInvitation[]
   persons      Person[]
   families     Family[]
   events       Event[]
@@ -117,6 +119,26 @@ model TreeMember {
 
   @@unique([treeId, userId])
   @@index([userId])
+}
+
+// Pending invitation by email. When a user signs in with a matching email,
+// the Auth.js signIn callback consumes the invitation and creates a
+// TreeMember automatically.
+model TreeInvitation {
+  id          String    @id @default(cuid())
+  treeId      String
+  email       String
+  role        TreeRole  @default(EDITOR)
+  invitedById String?
+  acceptedAt  DateTime?
+
+  tree         Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  invitedBy    User? @relation("TreeInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([treeId, email])
+  @@index([email])
 }
 
 // ---------------------------------------------------------------------------

@@ -34,6 +34,16 @@ export async function createPerson(formData: FormData) {
       })
     : null;
 
+  // Optional: create as a child of an existing union (Family). The parents
+  // come from that family and the form's Parents step is hidden on the page.
+  const childOfFamilyRaw = (formData.get("childOfFamily") ?? "").toString().trim();
+  const childOfFamily = childOfFamilyRaw
+    ? await prisma.family.findFirst({
+        where: { id: childOfFamilyRaw, treeId: tree.id },
+        select: { id: true, spouseAId: true, spouseBId: true },
+      })
+    : null;
+
   // Create the person first so subsequent helpers can reference it.
   const newPerson = await prisma.person.create({
     data: {
@@ -59,20 +69,32 @@ export async function createPerson(formData: FormData) {
   await upsertEvent(newPerson.id, tree.id, userId, "BIRTH", birth);
   await upsertEvent(newPerson.id, tree.id, userId, "DEATH", death);
 
-  // If creating as a sibling, hook into the existing family-of-birth.
-  // The form does not surface parent dropdowns in that case (parents are
-  // inherited), so we skip setParents.
-  if (siblingRef) {
+  // Parent linking: 3 mutually exclusive paths.
+  // 1. childOfFamily: hook into an existing union (Family), inheriting its
+  //    spouses as parents. The Parents step is hidden in the form.
+  // 2. siblingOf: hook into the existing family-of-birth of an existing
+  //    sibling. The Parents step is hidden.
+  // 3. Default: read the Parents step from the form.
+  let redirectAfter = "/persons";
+  if (childOfFamily) {
+    await prisma.familyChild.create({
+      data: { familyId: childOfFamily.id, childId: newPerson.id },
+    });
+    // Redirect back to whichever parent fronted the user; default to spouseA.
+    const focusParentId = childOfFamily.spouseAId ?? childOfFamily.spouseBId;
+    if (focusParentId) {
+      revalidatePath(`/persons/${focusParentId}/edit`);
+      redirectAfter = `/persons/${focusParentId}/edit`;
+    }
+  } else if (siblingRef) {
     await linkAsSibling(newPerson.id, siblingRef.id, tree.id, userId);
+    revalidatePath(`/persons/${siblingRef.id}/edit`);
+    redirectAfter = `/persons/${siblingRef.id}/edit`;
   } else {
     const parents = readParents(formData);
     await setParents(newPerson.id, tree.id, parents.A, parents.B, userId);
   }
 
   revalidatePath("/persons");
-  if (siblingRef) {
-    revalidatePath(`/persons/${siblingRef.id}/edit`);
-    redirect(`/persons/${siblingRef.id}/edit`);
-  }
-  redirect("/persons");
+  redirect(redirectAfter);
 }

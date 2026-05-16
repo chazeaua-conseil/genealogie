@@ -210,10 +210,13 @@ export default async function EditPersonPage({
               const marriageEv = u.events.find((e) => e.type === "MARRIAGE");
               const divorceEv = u.events.find((e) => e.type === "DIVORCE");
               return (
-                <li key={u.id}>
+                <li
+                  key={u.id}
+                  className="flex items-stretch divide-x hover:bg-muted/50"
+                >
                   <Link
                     href={`/persons/${person.id}/unions/${u.id}/edit`}
-                    className="flex items-center justify-between px-3 py-3 text-sm hover:bg-muted/50 gap-3"
+                    className="flex items-center justify-between px-3 py-3 text-sm gap-3 flex-1 min-w-0"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">
@@ -238,6 +241,14 @@ export default async function EditPersonPage({
                       </div>
                     </div>
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  </Link>
+                  <Link
+                    href={`/persons/new?childOfFamily=${u.id}`}
+                    className="flex items-center px-3 py-3 text-xs text-primary hover:underline shrink-0"
+                    title="Ajouter un enfant à cette union"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-0.5" />
+                    Enfant
                   </Link>
                 </li>
               );

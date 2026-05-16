@@ -42,6 +42,12 @@ export async function SiteHeader() {
             >
               Mon arbre
             </Link>
+            <Link
+              href="/tree/members"
+              className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors px-2 py-1"
+            >
+              Membres
+            </Link>
             <div className="flex items-center gap-3 pl-4 ml-2 border-l">
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="text-[10px] font-medium">

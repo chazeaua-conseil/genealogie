@@ -80,6 +80,7 @@ export function MultiStepPersonForm({
   siblingOf = null,
   cancelHref = "/persons",
   submitLabel = "Enregistrer",
+  extraHidden = null,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   person?: PersonInit;
@@ -92,6 +93,7 @@ export function MultiStepPersonForm({
   siblingOf?: string | null;
   cancelHref?: string;
   submitLabel?: string;
+  extraHidden?: React.ReactNode;
 }) {
   const steps: StepDef[] = useMemo(
     () =>
@@ -135,6 +137,7 @@ export function MultiStepPersonForm({
   return (
     <form action={action} className="space-y-8">
       {siblingOf && <input type="hidden" name="siblingOf" value={siblingOf} />}
+      {extraHidden}
 
       <StepIndicator
         steps={steps}
