@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateDefaultTree } from "@/lib/tree";
@@ -59,13 +59,22 @@ export default async function PersonsPage() {
             enregistrée{persons.length > 1 ? "s" : ""}
           </p>
         </div>
-        <Link
-          href="/persons/new"
-          className={buttonVariants({ size: "default" })}
-        >
-          <Plus className="h-4 w-4 mr-1.5" />
-          Nouvelle personne
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/persons/import"
+            className={buttonVariants({ variant: "outline", size: "default" })}
+          >
+            <Upload className="h-4 w-4 mr-1.5" />
+            Importer un CSV
+          </Link>
+          <Link
+            href="/persons/new"
+            className={buttonVariants({ size: "default" })}
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Nouvelle personne
+          </Link>
+        </div>
       </header>
 
       {persons.length === 0 ? (

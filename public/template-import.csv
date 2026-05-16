@@ -1,0 +1,7 @@
+person_id,surname,given_name,nickname,sex,is_living,birth_date,birth_place,birth_country,death_date,death_place,death_country,parent_a_id,parent_b_id,notes
+p1,Chazeau,Pierre,,M,false,1920-03-15,Lyon,France,2005-11-02,Lyon,France,,,Grand-père paternel
+p2,Martin,Marie,,F,false,1925-07-08,Paris,France,2010-04-21,Paris,France,,,Grand-mère paternelle
+p3,Chazeau,Jean,,M,false,1950-01-20,Lyon,France,,,,p1,p2,Père
+p4,Dupont,Sophie,,F,false,1955-09-12,Marseille,France,,,,,,Mère (parents non saisis)
+p5,Chazeau,André,Dédé,M,true,1980-06-04,Lyon,France,,,,p3,p4,Moi
+p6,Chazeau,Lucie,,F,true,1985-12-30,Lyon,France,,,,p3,p4,Soeur
