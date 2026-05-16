@@ -74,7 +74,7 @@ export function UnionForm({
     countryCodeByName(divorce?.place?.country) ?? DEFAULT_COUNTRY_CODE;
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} className="space-y-6" noValidate>
       <Card>
         <SectionHeader title="Partenaire" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

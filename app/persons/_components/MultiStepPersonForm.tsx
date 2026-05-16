@@ -135,7 +135,7 @@ export function MultiStepPersonForm({
     countryCodeByName(death?.place?.country) ?? DEFAULT_COUNTRY_CODE;
 
   return (
-    <form action={action} className="space-y-8">
+    <form action={action} className="space-y-8" noValidate>
       {siblingOf && (
         <input type="hidden" name="siblingOf" defaultValue={siblingOf} />
       )}
