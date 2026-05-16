@@ -326,25 +326,34 @@ export function MultiStepPersonForm({
           Annuler
         </Link>
         <div className="flex gap-2">
-          <Button
+          {/* Native <button type=button> for navigation — guarantees no
+              form submission regardless of any wrapper component behavior. */}
+          <button
             type="button"
-            variant="outline"
             disabled={isFirst}
-            onClick={() => setStepIdx((s) => Math.max(0, s - 1))}
+            onClick={(e) => {
+              e.preventDefault();
+              setStepIdx((s) => Math.max(0, s - 1));
+            }}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Précédent
-          </Button>
+          </button>
           {isLast ? (
             <Button type="submit">{submitLabel}</Button>
           ) : (
-            <Button
+            <button
               type="button"
-              onClick={() => setStepIdx((s) => Math.min(steps.length - 1, s + 1))}
+              onClick={(e) => {
+                e.preventDefault();
+                setStepIdx((s) => Math.min(steps.length - 1, s + 1));
+              }}
+              className={cn(buttonVariants())}
             >
               Suivant
               <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+            </button>
           )}
         </div>
       </div>
