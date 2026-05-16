@@ -245,6 +245,7 @@ export async function setParents(
   parentBId: string | null,
   userId: string,
 ) {
+  // 1. Validate spouses exist and aren't the person themselves.
   for (const pid of [parentAId, parentBId]) {
     if (!pid) continue;
     if (pid === personId) {
@@ -258,46 +259,158 @@ export async function setParents(
     }
   }
 
-  const familyChild = await prisma.familyChild.findFirst({
+  // 2. Find current family-of-birth (if any) with sibling info.
+  const currentFC = await prisma.familyChild.findFirst({
     where: { childId: personId },
+    include: { family: { include: { children: { select: { id: true } } } } },
   });
 
+  // 3. Clearing both parents → detach and clean up.
   if (!parentAId && !parentBId) {
-    if (familyChild) {
-      const family = await prisma.family.findUnique({
-        where: { id: familyChild.familyId },
-        include: { children: true },
-      });
-      await prisma.familyChild.delete({ where: { id: familyChild.id } });
-      if (
-        family &&
-        !family.spouseAId &&
-        !family.spouseBId &&
-        family.children.length <= 1
-      ) {
-        await prisma.family.delete({ where: { id: family.id } });
-      }
+    if (currentFC) {
+      await detachChildLink(currentFC);
     }
     return;
   }
 
-  let familyId: string;
-  if (familyChild) {
-    familyId = familyChild.familyId;
-  } else {
-    const newFamily = await prisma.family.create({
-      data: { treeId, createdById: userId },
-    });
-    familyId = newFamily.id;
+  // 4. Look for an existing family whose spouses match the requested pair,
+  //    in either order. Crucial for sibling auto-detection: if both kids
+  //    independently get the same parents set, they should end up in the
+  //    same Family rather than getting two siblings-less copies.
+  const matchingFamily = await prisma.family.findFirst({
+    where: {
+      treeId,
+      OR: [
+        { spouseAId: parentAId, spouseBId: parentBId },
+        { spouseAId: parentBId, spouseBId: parentAId },
+      ],
+    },
+  });
+
+  if (matchingFamily) {
+    if (currentFC?.familyId === matchingFamily.id) {
+      return; // already in the right family
+    }
+    if (currentFC) {
+      await detachChildLink(currentFC);
+    }
     await prisma.familyChild.create({
-      data: { familyId, childId: personId },
+      data: { familyId: matchingFamily.id, childId: personId },
     });
+    return;
   }
 
-  await prisma.family.update({
-    where: { id: familyId },
-    data: { spouseAId: parentAId, spouseBId: parentBId },
+  // 5. No matching family. Can we repurpose the current one?
+  //    Only if it has just this person as a child (no siblings rely on it).
+  if (currentFC) {
+    const siblingCount = currentFC.family.children.length - 1;
+    if (siblingCount === 0) {
+      await prisma.family.update({
+        where: { id: currentFC.familyId },
+        data: { spouseAId: parentAId, spouseBId: parentBId },
+      });
+      return;
+    }
+    // Siblings are attached — leave their family alone, detach this person.
+    await prisma.familyChild.delete({ where: { id: currentFC.id } });
+  }
+
+  // 6. Create a brand-new family with the requested spouses.
+  const newFamily = await prisma.family.create({
+    data: {
+      treeId,
+      spouseAId: parentAId,
+      spouseBId: parentBId,
+      createdById: userId,
+    },
   });
+  await prisma.familyChild.create({
+    data: { familyId: newFamily.id, childId: personId },
+  });
+}
+
+// Detach a FamilyChild link, and if the family is left with no spouses
+// and no other children, delete the family row too so it doesn't litter.
+async function detachChildLink(fc: {
+  id: string;
+  familyId: string;
+  family: { spouseAId: string | null; spouseBId: string | null; children: { id: string }[] };
+}) {
+  await prisma.familyChild.delete({ where: { id: fc.id } });
+  const remainingChildren = fc.family.children.length - 1;
+  if (
+    !fc.family.spouseAId &&
+    !fc.family.spouseBId &&
+    remainingChildren === 0
+  ) {
+    await prisma.family.delete({ where: { id: fc.familyId } });
+  }
+}
+
+/**
+ * Attaches a list of existing persons as children of `personId`. Best-effort
+ * with three branches per child:
+ *  - child already lists `personId` as a parent → no-op
+ *  - child has a family-of-birth with one open spouse slot → fill it with personId
+ *  - child has no family-of-birth → link them to a single shared "P + ø"
+ *    family created for this call, so all newly-attached childless kids
+ *    become siblings via that family
+ * Children whose family-of-birth already has both parents are silently
+ * skipped to avoid clobbering existing data; the user can rearrange them
+ * by editing the child's parents.
+ */
+export async function attachExistingChildren(
+  personId: string,
+  childIds: string[],
+  treeId: string,
+  userId: string,
+) {
+  if (childIds.length === 0) return;
+  const unique = [...new Set(childIds)].filter((id) => id && id !== personId);
+  let sharedFamilyId: string | null = null;
+
+  for (const childId of unique) {
+    const child = await prisma.person.findFirst({
+      where: { id: childId, treeId },
+    });
+    if (!child) continue;
+
+    const childFC = await prisma.familyChild.findFirst({
+      where: { childId },
+      include: { family: true },
+    });
+
+    if (childFC) {
+      const f = childFC.family;
+      if (f.spouseAId === personId || f.spouseBId === personId) {
+        continue; // already parented by this person
+      }
+      if (!f.spouseAId) {
+        await prisma.family.update({
+          where: { id: f.id },
+          data: { spouseAId: personId },
+        });
+      } else if (!f.spouseBId) {
+        await prisma.family.update({
+          where: { id: f.id },
+          data: { spouseBId: personId },
+        });
+      }
+      // else both slots taken → skip
+      continue;
+    }
+
+    // No family-of-birth → link to a shared single-parent family for this batch.
+    if (!sharedFamilyId) {
+      const f = await prisma.family.create({
+        data: { treeId, spouseAId: personId, createdById: userId },
+      });
+      sharedFamilyId = f.id;
+    }
+    await prisma.familyChild.create({
+      data: { familyId: sharedFamilyId, childId },
+    });
+  }
 }
 
 export async function linkAsSibling(

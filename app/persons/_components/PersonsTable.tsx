@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Network, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,6 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  displayNameSurnameFirst,
+  groupBySurname,
+  NO_SURNAME_KEY,
+} from "@/lib/person-display";
 
 type RowEvent = {
   date: Date | null;
@@ -51,14 +56,6 @@ const sexConfig: Record<
   },
 };
 
-function displayName(p: {
-  givenName: string | null;
-  surname: string | null;
-}) {
-  const parts = [p.givenName, p.surname].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : "(sans nom)";
-}
-
 function initials(p: { givenName: string | null; surname: string | null }) {
   const a = p.givenName?.trim()?.[0] ?? "";
   const b = p.surname?.trim()?.[0] ?? "";
@@ -92,6 +89,8 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
     const q = normalize(query.trim());
     return persons.filter((p) => searchKey(p).includes(q));
   }, [persons, query]);
+
+  const grouped = useMemo(() => groupBySurname(filtered), [filtered]);
 
   return (
     <div className="space-y-4">
@@ -137,49 +136,66 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((p) => (
-                <TableRow key={p.id} className="group">
-                  <TableCell>
-                    <Link
-                      href={`/persons/${p.id}/edit`}
-                      className="flex items-center gap-3"
+              {grouped.map(([surname, group]) => (
+                <Fragment key={surname}>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableCell
+                      colSpan={5}
+                      className="py-2 text-xs font-semibold tracking-wide uppercase text-muted-foreground"
                     >
-                      <Avatar className="h-9 w-9 shrink-0">
-                        <AvatarFallback className="text-xs font-medium">
-                          {initials(p)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="font-medium truncate group-hover:text-primary transition-colors">
-                          {displayName(p)}
-                        </div>
-                        {p.nickname && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            «&nbsp;{p.nickname}&nbsp;»
+                      {surname === NO_SURNAME_KEY.toUpperCase()
+                        ? NO_SURNAME_KEY
+                        : surname}
+                      <span className="ml-2 text-muted-foreground/70 font-normal normal-case">
+                        ({group.length})
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                  {group.map((p) => (
+                    <TableRow key={p.id} className="group">
+                      <TableCell>
+                        <Link
+                          href={`/persons/${p.id}/edit`}
+                          className="flex items-center gap-3"
+                        >
+                          <Avatar className="h-9 w-9 shrink-0">
+                            <AvatarFallback className="text-xs font-medium">
+                              {initials(p)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate group-hover:text-primary transition-colors">
+                              {displayNameSurnameFirst(p)}
+                            </div>
+                            {p.nickname && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                «&nbsp;{p.nickname}&nbsp;»
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <SexBadge sex={p.sex} />
-                  </TableCell>
-                  <TableCell>
-                    <EventCell event={p.birth} />
-                  </TableCell>
-                  <TableCell>
-                    <EventCell event={p.death} emptyAsBlank />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link
-                      href={`/persons/${p.id}/tree`}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      title={`Voir l'arbre de ${displayName(p)}`}
-                    >
-                      <Network className="h-4 w-4" />
-                    </Link>
-                  </TableCell>
-                </TableRow>
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <SexBadge sex={p.sex} />
+                      </TableCell>
+                      <TableCell>
+                        <EventCell event={p.birth} />
+                      </TableCell>
+                      <TableCell>
+                        <EventCell event={p.death} emptyAsBlank />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link
+                          href={`/persons/${p.id}/tree`}
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title={`Voir l'arbre de ${displayNameSurnameFirst(p)}`}
+                        >
+                          <Network className="h-4 w-4" />
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </Fragment>
               ))}
             </TableBody>
           </Table>

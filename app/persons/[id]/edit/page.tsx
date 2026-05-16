@@ -6,17 +6,10 @@ import { updatePerson } from "../actions";
 import { DeleteButton } from "../../_components/DeleteButton";
 import { MultiStepPersonForm } from "../../_components/MultiStepPersonForm";
 import { buttonVariants } from "@/components/ui/button";
-
-type NamedPerson = {
-  id?: string;
-  givenName: string | null;
-  surname: string | null;
-};
-
-function displayName(p: NamedPerson) {
-  const parts = [p.givenName, p.surname].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : "(sans nom)";
-}
+import {
+  displayName,
+  displayNameSurnameFirst,
+} from "@/lib/person-display";
 
 function shortDate(d: Date | null): string {
   if (!d) return "";
@@ -221,7 +214,7 @@ export default async function EditPersonPage({
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">
                         {familyTypeLabel[u.type]}
-                        {partner ? ` avec ${displayName(partner)}` : " (partenaire inconnu)"}
+                        {partner ? ` avec ${displayNameSurnameFirst(partner)}` : " (partenaire inconnu)"}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {marriageEv?.date && (
@@ -283,7 +276,7 @@ export default async function EditPersonPage({
                   >
                     <div className="min-w-0">
                       <div className="font-medium truncate">
-                        {displayName(cl.child)}
+                        {displayNameSurnameFirst(cl.child)}
                         {birthY ? (
                           <span className="text-xs text-muted-foreground font-normal ml-2">
                             ({birthY})
@@ -292,7 +285,7 @@ export default async function EditPersonPage({
                       </div>
                       {otherParent && (
                         <div className="text-xs text-muted-foreground truncate">
-                          avec {displayName(otherParent)}
+                          avec {displayNameSurnameFirst(otherParent)}
                         </div>
                       )}
                     </div>
@@ -334,7 +327,7 @@ export default async function EditPersonPage({
                   href={`/persons/${fc.child.id}/edit`}
                   className="flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50"
                 >
-                  <span>{displayName(fc.child)}</span>
+                  <span>{displayNameSurnameFirst(fc.child)}</span>
                   <span className="text-xs text-muted-foreground">
                     Modifier →
                   </span>

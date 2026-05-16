@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   EMPTY_EVENT_INPUT,
+  attachExistingChildren,
   linkAsSibling,
   readEvent,
   readParents,
@@ -14,6 +15,13 @@ import {
   setParents,
   upsertEvent,
 } from "./_lib/form";
+
+function readChildIds(formData: FormData): string[] {
+  return formData
+    .getAll("childIds")
+    .map((v) => v.toString().trim())
+    .filter(Boolean);
+}
 
 export async function createPerson(formData: FormData) {
   try {
@@ -113,6 +121,12 @@ async function _createPerson(formData: FormData) {
   } else {
     const parents = readParents(formData);
     await setParents(newPerson.id, tree.id, parents.A, parents.B, userId);
+  }
+
+  // Optional: link existing persons as children of the new person.
+  const childIds = readChildIds(formData);
+  if (childIds.length > 0) {
+    await attachExistingChildren(newPerson.id, childIds, tree.id, userId);
   }
 
   revalidatePath("/persons");

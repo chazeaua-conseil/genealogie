@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,10 @@ import {
   countryCodeByName,
   DEFAULT_COUNTRY_CODE,
 } from "@/lib/countries";
+import {
+  displayNameSurnameFirst,
+  groupBySurname,
+} from "@/lib/person-display";
 import { EventPlaceInput } from "./EventPlaceInput";
 
 const inputSelectClass =
@@ -52,11 +56,6 @@ const emptyPerson: PersonInit = {
   isLiving: false,
   notes: null,
 };
-
-function displayName(p: PersonSelect) {
-  const parts = [p.givenName, p.surname].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : "(sans nom)";
-}
 
 function isoDate(d: Date | null | undefined) {
   return d ? d.toISOString().slice(0, 10) : "";
@@ -124,6 +123,33 @@ export function MultiStepPersonForm({
 
   const [stepIdx, setStepIdx] = useState(0);
   const [isLiving, setIsLiving] = useState(person.isLiving);
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  // Re-render dropdown by clearing its selected value when changes happen.
+  const [childPickerNonce, setChildPickerNonce] = useState(0);
+
+  // Lookup by id for the children chips display.
+  const personById = useMemo(() => {
+    const m = new Map<string, PersonSelect>();
+    for (const p of otherPersons) m.set(p.id, p);
+    return m;
+  }, [otherPersons]);
+
+  // Available pool for the child picker (excludes already-selected + parents).
+  const availableChildren = useMemo(() => {
+    const exclude = new Set<string>(selectedChildIds);
+    if (parentAId) exclude.add(parentAId);
+    if (parentBId) exclude.add(parentBId);
+    return otherPersons.filter((p) => !exclude.has(p.id));
+  }, [otherPersons, selectedChildIds, parentAId, parentBId]);
+
+  const childGroups = useMemo(
+    () => groupBySurname(availableChildren),
+    [availableChildren],
+  );
+  const parentGroups = useMemo(
+    () => groupBySurname(otherPersons),
+    [otherPersons],
+  );
 
   const current = steps[stepIdx];
   const isFirst = stepIdx === 0;
@@ -265,47 +291,131 @@ export function MultiStepPersonForm({
       </div>
 
       {showParents && (
-        <Card hidden={current.key !== "family"}>
-          {otherPersons.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Crée d&apos;abord d&apos;autres personnes pour pouvoir les
-              rattacher comme parents.
+        <div hidden={current.key !== "family"} className="space-y-6">
+          <Card>
+            <SectionHeader title="Parents" />
+            {otherPersons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Crée d&apos;abord d&apos;autres personnes pour pouvoir les
+                rattacher comme parents.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Parent 1" htmlFor="parentAId">
+                  <PersonsSelect
+                    id="parentAId"
+                    name="parentAId"
+                    defaultValue={parentAId ?? ""}
+                    placeholder="— Aucun —"
+                    groups={parentGroups}
+                  />
+                </Field>
+                <Field label="Parent 2" htmlFor="parentBId">
+                  <PersonsSelect
+                    id="parentBId"
+                    name="parentBId"
+                    defaultValue={parentBId ?? ""}
+                    placeholder="— Aucun —"
+                    groups={parentGroups}
+                  />
+                </Field>
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <SectionHeader title="Enfants existants à rattacher" />
+            <p className="text-xs text-muted-foreground -mt-2">
+              Sélectionne ici les personnes déjà créées que tu veux rattacher
+              comme enfants. Ne pas confondre avec la création d&apos;un
+              nouvel enfant : utilise le bouton « + Enfant » sur une union
+              pour ça.
             </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Parent 1" htmlFor="parentAId">
-                <select
-                  id="parentAId"
-                  name="parentAId"
-                  defaultValue={parentAId ?? ""}
-                  className={inputSelectClass}
-                >
-                  <option value="">— Aucun —</option>
-                  {otherPersons.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {displayName(p)}
+            {otherPersons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucune autre personne disponible.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2 min-h-[2.25rem]">
+                  {selectedChildIds.length === 0 && (
+                    <span className="text-sm text-muted-foreground italic pt-1">
+                      Aucun enfant sélectionné.
+                    </span>
+                  )}
+                  {selectedChildIds.map((id) => {
+                    const p = personById.get(id);
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1.5 rounded-md border bg-muted/50 pl-2.5 pr-1 py-1 text-sm"
+                      >
+                        <input
+                          type="hidden"
+                          name="childIds"
+                          defaultValue={id}
+                        />
+                        <span>
+                          {p ? displayNameSurnameFirst(p) : "(personne)"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setSelectedChildIds((cur) =>
+                              cur.filter((x) => x !== id),
+                            );
+                          }}
+                          className="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          aria-label={`Retirer ${p ? displayNameSurnameFirst(p) : "cet enfant"}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2">
+                  <select
+                    key={childPickerNonce}
+                    defaultValue=""
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (id) {
+                        setSelectedChildIds((cur) => [...cur, id]);
+                        setChildPickerNonce((n) => n + 1);
+                      }
+                    }}
+                    className={cn(inputSelectClass, "flex-1")}
+                    disabled={availableChildren.length === 0}
+                  >
+                    <option value="" disabled>
+                      {availableChildren.length === 0
+                        ? "Plus aucune personne à ajouter"
+                        : "— Choisir une personne —"}
                     </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Parent 2" htmlFor="parentBId">
-                <select
-                  id="parentBId"
-                  name="parentBId"
-                  defaultValue={parentBId ?? ""}
-                  className={inputSelectClass}
-                >
-                  <option value="">— Aucun —</option>
-                  {otherPersons.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {displayName(p)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          )}
-        </Card>
+                    {childGroups.map(([surname, items]) => (
+                      <optgroup key={surname} label={surname}>
+                        {items.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {displayNameSurnameFirst(p)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Comportement : si l&apos;enfant n&apos;a pas de famille de
+                  naissance, il sera rattaché à cette personne. S&apos;il a
+                  déjà un parent enregistré, cette personne sera ajoutée
+                  comme second parent.
+                </p>
+              </>
+            )}
+          </Card>
+        </div>
       )}
 
       <Card hidden={current.key !== "notes"}>
@@ -456,5 +566,39 @@ function Field({
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
     </div>
+  );
+}
+
+function PersonsSelect({
+  id,
+  name,
+  defaultValue,
+  placeholder,
+  groups,
+}: {
+  id: string;
+  name: string;
+  defaultValue: string;
+  placeholder: string;
+  groups: Array<[string, PersonSelect[]]>;
+}) {
+  return (
+    <select
+      id={id}
+      name={name}
+      defaultValue={defaultValue}
+      className={inputSelectClass}
+    >
+      <option value="">{placeholder}</option>
+      {groups.map(([surname, items]) => (
+        <optgroup key={surname} label={surname}>
+          {items.map((p) => (
+            <option key={p.id} value={p.id}>
+              {displayNameSurnameFirst(p)}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
   );
 }

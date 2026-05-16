@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -10,6 +10,10 @@ import {
   countryCodeByName,
   DEFAULT_COUNTRY_CODE,
 } from "@/lib/countries";
+import {
+  displayNameSurnameFirst,
+  groupBySurname,
+} from "@/lib/person-display";
 import { EventPlaceInput } from "./EventPlaceInput";
 
 const inputSelectClass =
@@ -25,11 +29,6 @@ type EventInit = {
   date: Date | null;
   place: { name: string; country: string | null } | null;
 } | null;
-
-function displayName(p: PersonSelect) {
-  const parts = [p.givenName, p.surname].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : "(sans nom)";
-}
 
 function isoDate(d: Date | null | undefined) {
   return d ? d.toISOString().slice(0, 10) : "";
@@ -68,6 +67,8 @@ export function UnionForm({
 }) {
   const [divorced, setDivorced] = useState(isDivorced);
 
+  const partnerGroups = useMemo(() => groupBySurname(partners), [partners]);
+
   const marriageCountry =
     countryCodeByName(marriage?.place?.country) ?? DEFAULT_COUNTRY_CODE;
   const divorceCountry =
@@ -89,10 +90,14 @@ export function UnionForm({
               <option value="" disabled>
                 — Choisir une personne —
               </option>
-              {partners.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {displayName(p)}
-                </option>
+              {partnerGroups.map(([surname, items]) => (
+                <optgroup key={surname} label={surname}>
+                  {items.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {displayNameSurnameFirst(p)}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </Field>

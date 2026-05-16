@@ -6,12 +6,20 @@ import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
 import {
   EMPTY_EVENT_INPUT,
+  attachExistingChildren,
   readEvent,
   readParents,
   readPersonCore,
   setParents,
   upsertEvent,
 } from "../_lib/form";
+
+function readChildIds(formData: FormData): string[] {
+  return formData
+    .getAll("childIds")
+    .map((v) => v.toString().trim())
+    .filter(Boolean);
+}
 
 export async function updatePerson(id: string, formData: FormData) {
   const { person, userId } = await requirePersonForCurrentUser(id);
@@ -46,6 +54,12 @@ export async function updatePerson(id: string, formData: FormData) {
   await upsertEvent(person.id, person.treeId, userId, "BIRTH", birth);
   await upsertEvent(person.id, person.treeId, userId, "DEATH", death);
   await setParents(person.id, person.treeId, parents.A, parents.B, userId);
+
+  // Optional: link existing persons as children of this person.
+  const childIds = readChildIds(formData);
+  if (childIds.length > 0) {
+    await attachExistingChildren(person.id, childIds, person.treeId, userId);
+  }
 
   revalidatePath("/persons");
   revalidatePath(`/persons/${person.id}/edit`);

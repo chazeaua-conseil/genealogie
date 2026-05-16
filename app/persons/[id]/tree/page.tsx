@@ -2,6 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  displayName as displayNameNatural,
+  displayNameSurnameFirst,
+} from "@/lib/person-display";
 
 const ANCESTOR_GENERATIONS = 3;
 
@@ -30,13 +34,7 @@ type PersonNode = {
 
 type Slot = { person: PersonNode | null };
 
-function displayName(p: {
-  givenName: string | null;
-  surname: string | null;
-}) {
-  const parts = [p.givenName, p.surname].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : "(sans nom)";
-}
+const displayName = displayNameNatural;
 
 async function loadPerson(id: string): Promise<PersonNode | null> {
   const p = await prisma.person.findUnique({
@@ -294,7 +292,7 @@ export default async function TreePage({
                   className={`flex flex-col rounded-md border border-l-4 ${sexColor} bg-background px-3 py-2 hover:bg-muted/50 transition-colors min-w-0`}
                 >
                   <span className="font-medium text-sm truncate max-w-[14rem]">
-                    {displayName(s)}
+                    {displayNameSurnameFirst(s)}
                   </span>
                   {lifespan && (
                     <span className="text-xs text-muted-foreground">
@@ -446,7 +444,7 @@ function TreeCard({
       style={style}
       className={`${base} border-l-4 ${sexBorder} hover:bg-muted/50 transition-colors`}
     >
-      <div className="font-medium truncate">{displayName(p)}</div>
+      <div className="font-medium truncate">{displayNameSurnameFirst(p)}</div>
       {lifespan && (
         <div className="text-xs text-muted-foreground mt-0.5 truncate">
           {lifespan}
