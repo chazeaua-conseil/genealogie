@@ -78,11 +78,6 @@ export default async function NewPersonPage({
       ? "Créer le frère/sœur"
       : "Créer la personne";
 
-  // Hidden form field carrying the contextual link.
-  const contextHiddenField = family ? (
-    <input type="hidden" name="childOfFamily" value={family.id} />
-  ) : null;
-
   return (
     <main className="container mx-auto max-w-3xl px-6 py-8">
       <div className="mb-6">
@@ -105,9 +100,9 @@ export default async function NewPersonPage({
         otherPersons={otherPersons}
         showParents={!siblingRef && !family}
         siblingOf={siblingRef?.id ?? null}
+        childOfFamilyId={family?.id ?? null}
         cancelHref={backHref}
         submitLabel={submitLabel}
-        extraHidden={contextHiddenField}
       />
     </main>
   );

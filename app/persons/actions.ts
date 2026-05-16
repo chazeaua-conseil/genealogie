@@ -16,6 +16,26 @@ import {
 } from "./_lib/form";
 
 export async function createPerson(formData: FormData) {
+  try {
+    return await _createPerson(formData);
+  } catch (err) {
+    // Re-throw Next.js redirect/notFound signals — they're not real errors.
+    if (
+      err &&
+      typeof err === "object" &&
+      "digest" in err &&
+      typeof (err as { digest?: unknown }).digest === "string" &&
+      ((err as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
+        (err as { digest: string }).digest === "NEXT_NOT_FOUND")
+    ) {
+      throw err;
+    }
+    console.error("[createPerson] failed:", err);
+    throw err;
+  }
+}
+
+async function _createPerson(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Non authentifié");
   const userId = session.user.id;

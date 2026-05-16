@@ -78,9 +78,9 @@ export function MultiStepPersonForm({
   otherPersons,
   showParents = true,
   siblingOf = null,
+  childOfFamilyId = null,
   cancelHref = "/persons",
   submitLabel = "Enregistrer",
-  extraHidden = null,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   person?: PersonInit;
@@ -91,9 +91,9 @@ export function MultiStepPersonForm({
   otherPersons: PersonSelect[];
   showParents?: boolean;
   siblingOf?: string | null;
+  childOfFamilyId?: string | null;
   cancelHref?: string;
   submitLabel?: string;
-  extraHidden?: React.ReactNode;
 }) {
   const steps: StepDef[] = useMemo(
     () =>
@@ -136,8 +136,16 @@ export function MultiStepPersonForm({
 
   return (
     <form action={action} className="space-y-8">
-      {siblingOf && <input type="hidden" name="siblingOf" value={siblingOf} />}
-      {extraHidden}
+      {siblingOf && (
+        <input type="hidden" name="siblingOf" defaultValue={siblingOf} />
+      )}
+      {childOfFamilyId && (
+        <input
+          type="hidden"
+          name="childOfFamily"
+          defaultValue={childOfFamilyId}
+        />
+      )}
 
       <StepIndicator
         steps={steps}
