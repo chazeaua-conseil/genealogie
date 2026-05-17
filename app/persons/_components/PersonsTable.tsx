@@ -66,6 +66,25 @@ function formatFrDate(d: Date): string {
   return new Intl.DateTimeFormat("fr-FR").format(d);
 }
 
+function ageInYears(from: Date, to: Date): number {
+  let age = to.getFullYear() - from.getFullYear();
+  const m = to.getMonth() - from.getMonth();
+  if (m < 0 || (m === 0 && to.getDate() < from.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+function computeAge(p: PersonRow, today: Date): number | null {
+  const birth = p.birth?.date;
+  if (!birth) return null;
+  const reference = p.isLiving ? today : p.death?.date;
+  if (!reference) return null;
+  const age = ageInYears(new Date(birth), new Date(reference));
+  if (age < 0 || age > 130) return null; // sanity guard against bad data
+  return age;
+}
+
 function normalize(s: string): string {
   return s
     .toLowerCase()
@@ -91,6 +110,11 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
   }, [persons, query]);
 
   const grouped = useMemo(() => groupBySurname(filtered), [filtered]);
+
+  // Today reference for age computation — computed once on mount, recomputed
+  // when the dataset changes (good enough for a list that's re-rendered on
+  // every page visit).
+  const today = useMemo(() => new Date(), [persons]);
 
   return (
     <div className="space-y-4">
@@ -132,6 +156,7 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
                 <TableHead className="w-28">Sexe</TableHead>
                 <TableHead>Naissance</TableHead>
                 <TableHead>Décès</TableHead>
+                <TableHead className="w-20">Âge</TableHead>
                 <TableHead className="w-16 text-right">Arbre</TableHead>
               </TableRow>
             </TableHeader>
@@ -140,7 +165,7 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
                 <Fragment key={surname}>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="py-2 text-xs font-semibold tracking-wide uppercase text-muted-foreground"
                     >
                       {surname === NO_SURNAME_KEY.toUpperCase()
@@ -184,6 +209,9 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
                       <TableCell>
                         <EventCell event={p.death} emptyAsBlank />
                       </TableCell>
+                      <TableCell>
+                        <AgeCell person={p} today={today} />
+                      </TableCell>
                       <TableCell className="text-right">
                         <Link
                           href={`/persons/${p.id}/tree`}
@@ -215,6 +243,26 @@ function SexBadge({ sex }: { sex: PersonRow["sex"] }) {
       )}
     >
       {c.label}
+    </span>
+  );
+}
+
+function AgeCell({ person, today }: { person: PersonRow; today: Date }) {
+  const age = computeAge(person, today);
+  if (age === null) return <span />;
+  return (
+    <span
+      className="text-sm tabular-nums"
+      title={
+        person.isLiving
+          ? `Calculé à partir d'aujourd'hui (${formatFrDate(today)})`
+          : "Calculé entre la naissance et le décès"
+      }
+    >
+      {age}{" "}
+      <span className="text-xs text-muted-foreground">
+        {age > 1 ? "ans" : "an"}
+      </span>
     </span>
   );
 }
