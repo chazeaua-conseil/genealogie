@@ -129,6 +129,12 @@ export function previewCsv(content: string): ImportPreview {
       skip_empty_lines: true,
       trim: true,
       bom: true,
+      // Tolerate rows that omit trailing empty columns. Most spreadsheets
+      // (Excel, Numbers, Sheets) drop trailing commas when the rightmost
+      // columns are blank, so the strict default rejects perfectly valid
+      // exports. Extra (unexpected) columns still raise, since those
+      // usually signal a missing escape / quoting bug.
+      relax_column_count_less: true,
     });
   } catch (err) {
     return {
