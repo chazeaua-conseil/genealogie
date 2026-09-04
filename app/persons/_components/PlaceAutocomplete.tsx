@@ -30,30 +30,32 @@ export function PlaceAutocomplete({
   const [text, setText] = useState(defaultValue);
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<PlaceSuggestion | null>(null);
+  // The suggestion is remembered together with the country it was picked
+  // under: switching country invalidates it (derived, so no reset effect).
+  const [picked, setPicked] = useState<{
+    suggestion: PlaceSuggestion;
+    countryCode: string;
+  } | null>(null);
+  const selected =
+    picked && picked.countryCode === countryCode ? picked.suggestion : null;
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inFlightRef = useRef<AbortController | null>(null);
 
-  // Clear selection if country changes — the chosen suggestion is no longer
-  // necessarily valid for the new country.
-  useEffect(() => {
-    setSelected(null);
-  }, [countryCode]);
 
+  // Every state update happens inside the debounce callback, never
+  // synchronously in the effect body, so a keystroke can't cascade renders.
   useEffect(() => {
-    if (selected && selected.displayName === text) {
-      setOpen(false);
-      return;
-    }
+    if (selected && selected.displayName === text) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!text || text.length < 2) {
-      setResults([]);
-      setOpen(false);
-      return;
-    }
+
     debounceRef.current = setTimeout(async () => {
+      if (!text || text.length < 2) {
+        setResults([]);
+        setOpen(false);
+        return;
+      }
       if (inFlightRef.current) inFlightRef.current.abort();
       const ac = new AbortController();
       inFlightRef.current = ac;
@@ -98,7 +100,7 @@ export function PlaceAutocomplete({
   }, []);
 
   function onSelect(s: PlaceSuggestion) {
-    setSelected(s);
+    setPicked({ suggestion: s, countryCode });
     setText(s.displayName);
     setOpen(false);
   }
@@ -110,7 +112,7 @@ export function PlaceAutocomplete({
         value={text}
         onChange={(e) => {
           setText(e.target.value);
-          setSelected(null);
+          setPicked(null);
         }}
         onFocus={() => {
           if (results.length > 0) setOpen(true);

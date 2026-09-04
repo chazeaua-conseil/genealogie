@@ -1,11 +1,12 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
   requireFamilyForCurrentUser,
   requirePersonForCurrentUser,
 } from "@/lib/access";
+import { loadPersonOptions } from "@/lib/person-options";
 import { UnionForm } from "../../../../_components/UnionForm";
 import { DeleteUnionButton } from "../../../../_components/DeleteUnionButton";
+import { PageHeader } from "@/components/page-header";
 import { updateUnion } from "../../actions";
 
 function displayName(p: {
@@ -45,35 +46,25 @@ export default async function EditUnionPage({
     family.spouseAId === person.id ? family.spouseB : family.spouseA;
   const partnerId = partner?.id ?? null;
 
-  const partners = await prisma.person.findMany({
-    where: { treeId: person.treeId, NOT: { id } },
-    orderBy: [{ surname: "asc" }, { givenName: "asc" }],
-    select: { id: true, givenName: true, surname: true },
-  });
+  const partners = await loadPersonOptions(person.treeId, { excludeId: id });
 
   const backHref = `/persons/${person.id}/edit`;
 
   return (
-    <main className="container mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <Link
-            href={backHref}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            ← Retour à {displayName(person)}
-          </Link>
-          <h1 className="text-3xl font-semibold tracking-tight mt-2">
-            Union de {displayName(person)}
-            {partner ? ` & ${displayName(partner)}` : ""}
-          </h1>
-        </div>
-        <DeleteUnionButton
-          personId={person.id}
-          familyId={family.id}
-          partnerLabel={partner ? displayName(partner) : "(inconnu)"}
-        />
-      </div>
+    <main className="container mx-auto max-w-3xl px-4 sm:px-6 py-8">
+      <PageHeader
+        backHref={backHref}
+        backLabel={`Retour à ${displayName(person)}`}
+        eyebrow="Union"
+        title={`${displayName(person)}${partner ? ` & ${displayName(partner)}` : ""}`}
+        actions={
+          <DeleteUnionButton
+            personId={person.id}
+            familyId={family.id}
+            partnerLabel={partner ? displayName(partner) : "(inconnu)"}
+          />
+        }
+      />
 
       <UnionForm
         action={updateUnion.bind(null, person.id, family.id)}

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Mail, Plus } from "lucide-react";
 import { auth } from "@/auth";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { PageHeader } from "@/components/page-header";
 import { inviteMember } from "./actions";
 import { RemoveMemberButton } from "./RemoveMemberButton";
 import { RevokeInvitationButton } from "./RevokeInvitationButton";
@@ -82,23 +82,14 @@ export default async function MembersPage() {
   });
 
   return (
-    <main className="container mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-8">
-        <Link
-          href="/persons"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Retour à l&apos;arbre
-        </Link>
-        <h1 className="text-3xl font-semibold tracking-tight mt-2">
-          Membres de {tree.name}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Les membres ont accès aux mêmes personnes et peuvent les éditer.
-          Invite quelqu&apos;un par email — il rejoindra l&apos;arbre dès sa
-          prochaine connexion Google.
-        </p>
-      </div>
+    <main className="container mx-auto max-w-3xl px-4 sm:px-6 py-8">
+      <PageHeader
+        backHref="/"
+        backLabel="Retour à l'arbre"
+        eyebrow={tree.name}
+        title="Membres de l'arbre"
+        description="Les membres ont accès aux mêmes personnes et peuvent les éditer. Invite quelqu'un par email — il rejoindra l'arbre dès sa prochaine connexion Google."
+      />
 
       <section className="rounded-lg border bg-card p-5 shadow-sm">
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-4">

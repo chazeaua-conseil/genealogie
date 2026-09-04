@@ -11,19 +11,13 @@ import {
   DEFAULT_COUNTRY_CODE,
 } from "@/lib/countries";
 import {
-  displayNameSurnameFirst,
-  groupBySurname,
-} from "@/lib/person-display";
+  PersonCombobox,
+  type PersonOption,
+} from "@/components/person-combobox";
 import { EventPlaceInput } from "./EventPlaceInput";
 
 const inputSelectClass =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs";
-
-type PersonSelect = {
-  id: string;
-  givenName: string | null;
-  surname: string | null;
-};
+  "flex h-9 w-full rounded-lg border border-input bg-surface px-3 py-1 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/40";
 
 type EventInit = {
   date: Date | null;
@@ -61,13 +55,16 @@ export function UnionForm({
   marriage?: EventInit;
   isDivorced?: boolean;
   divorce?: EventInit;
-  partners: PersonSelect[];
+  partners: PersonOption[];
   cancelHref: string;
   submitLabel?: string;
 }) {
   const [divorced, setDivorced] = useState(isDivorced);
 
-  const partnerGroups = useMemo(() => groupBySurname(partners), [partners]);
+  const defaultPartner = useMemo(
+    () => partners.find((p) => p.id === partnerId) ?? null,
+    [partners, partnerId],
+  );
 
   const marriageCountry =
     countryCodeByName(marriage?.place?.country) ?? DEFAULT_COUNTRY_CODE;
@@ -75,31 +72,19 @@ export function UnionForm({
     countryCodeByName(divorce?.place?.country) ?? DEFAULT_COUNTRY_CODE;
 
   return (
-    <form action={action} className="space-y-6" noValidate>
+    <form action={action} className="space-y-6">
       <Card>
         <SectionHeader title="Partenaire" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Partenaire" htmlFor="partnerId">
-            <select
+            <PersonCombobox
               id="partnerId"
               name="partnerId"
-              defaultValue={partnerId ?? ""}
+              persons={partners}
+              defaultPerson={defaultPartner}
               required
-              className={inputSelectClass}
-            >
-              <option value="" disabled>
-                — Choisir une personne —
-              </option>
-              {partnerGroups.map(([surname, items]) => (
-                <optgroup key={surname} label={surname}>
-                  {items.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {displayNameSurnameFirst(p)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+              placeholder="Tape un nom…"
+            />
           </Field>
           <Field label="Nature de l'union" htmlFor="type">
             <select
@@ -180,7 +165,7 @@ export function UnionForm({
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-4 shadow-sm">
+    <div className="rounded-xl border bg-card p-5 space-y-4 shadow-sm">
       {children}
     </div>
   );

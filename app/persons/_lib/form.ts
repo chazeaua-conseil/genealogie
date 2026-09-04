@@ -439,3 +439,56 @@ export async function linkAsSibling(
     ],
   });
 }
+
+/**
+ * Links an existing person as a parent of `childId`, filling a free spouse
+ * slot in the child's family-of-birth (creating that family when the child
+ * has none). Used by the "Ajouter le père / la mère" flow on a person's
+ * fiche, where the new parent is created first and attached right after.
+ *
+ * Idempotent when the person is already a parent of the child. Throws when
+ * both parent slots are taken — the UI hides the entry point in that case.
+ */
+export async function attachAsParent(
+  parentId: string,
+  childId: string,
+  treeId: string,
+  userId: string,
+) {
+  if (parentId === childId) {
+    throw new Error("Une personne ne peut pas être son propre parent.");
+  }
+
+  const childFC = await prisma.familyChild.findFirst({
+    where: { childId },
+    include: { family: true },
+  });
+
+  if (!childFC) {
+    const family = await prisma.family.create({
+      data: { treeId, spouseAId: parentId, createdById: userId },
+    });
+    await prisma.familyChild.create({
+      data: { familyId: family.id, childId },
+    });
+    return;
+  }
+
+  const f = childFC.family;
+  if (f.spouseAId === parentId || f.spouseBId === parentId) return;
+  if (!f.spouseAId) {
+    await prisma.family.update({
+      where: { id: f.id },
+      data: { spouseAId: parentId },
+    });
+  } else if (!f.spouseBId) {
+    await prisma.family.update({
+      where: { id: f.id },
+      data: { spouseBId: parentId },
+    });
+  } else {
+    throw new Error(
+      "Les deux parents de cette personne sont déjà renseignés.",
+    );
+  }
+}

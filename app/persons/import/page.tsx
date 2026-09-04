@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { PageHeader } from "@/components/page-header";
 import { ImportForm } from "./ImportForm";
 
 export default async function ImportPage() {
@@ -8,27 +8,18 @@ export default async function ImportPage() {
   if (!session?.user?.id) redirect("/");
 
   return (
-    <main className="container mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6">
-        <Link
-          href="/persons"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Retour à la liste
-        </Link>
-        <h1 className="text-3xl font-semibold tracking-tight mt-2">
-          Importer un fichier CSV
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Importe en lot une liste de personnes (identité, naissance, décès,
-          parents). Les unions / mariages se gèrent ensuite à la main depuis
-          chaque fiche.
-        </p>
-      </div>
+    <main className="container mx-auto max-w-3xl px-4 sm:px-6 py-8">
+      <PageHeader
+        backHref="/persons"
+        backLabel="Retour à la liste"
+        eyebrow="Import"
+        title="Importer un fichier CSV"
+        description="Importe en lot une liste de personnes (identité, naissance, décès, parents). Les unions / mariages se gèrent ensuite à la main depuis chaque fiche."
+      />
 
       <ImportForm />
 
-      <section className="mt-10 rounded-lg border bg-card p-5 shadow-sm text-sm space-y-3">
+      <section className="mt-10 rounded-xl border bg-card p-5 shadow-sm text-sm space-y-3">
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           Format attendu
         </h2>

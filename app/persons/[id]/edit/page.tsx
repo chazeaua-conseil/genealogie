@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { Network, Pencil, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
+import { loadPersonOptions } from "@/lib/person-options";
 import { updatePerson } from "../actions";
 import { DeleteButton } from "../../_components/DeleteButton";
 import { MultiStepPersonForm } from "../../_components/MultiStepPersonForm";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import {
   displayName,
   displayNameSurnameFirst,
+  lifespan,
 } from "@/lib/person-display";
 
 function shortDate(d: Date | null): string {
@@ -41,11 +46,20 @@ export default async function EditPersonPage({
   const birth = events.find((e) => e.type === "BIRTH");
   const death = events.find((e) => e.type === "DEATH");
 
+  const parentSelect = {
+    id: true,
+    givenName: true,
+    surname: true,
+    sex: true,
+  } as const;
+
   const familyChild = await prisma.familyChild.findFirst({
     where: { childId: id },
     include: {
       family: {
         include: {
+          spouseA: { select: parentSelect },
+          spouseB: { select: parentSelect },
           children: {
             include: { child: true },
             orderBy: { child: { surname: "asc" } },
@@ -57,6 +71,18 @@ export default async function EditPersonPage({
   const familyOfBirth = familyChild?.family ?? null;
   const siblings =
     familyOfBirth?.children.filter((fc) => fc.childId !== id) ?? [];
+
+  // Parents come from the two spouse slots of the family-of-birth, which
+  // carry no gender semantics — the père / mère rows are derived from the
+  // parents' own sex, and a parent with an unknown sex is listed apart.
+  const parents = [familyOfBirth?.spouseA, familyOfBirth?.spouseB].filter(
+    (p): p is NonNullable<typeof p> => Boolean(p),
+  );
+  const father = parents.find((p) => p.sex === "MALE") ?? null;
+  const mother = parents.find((p) => p.sex === "FEMALE") ?? null;
+  const otherParents = parents.filter((p) => p !== father && p !== mother);
+  // Both spouse slots taken → nothing left to attach a new parent to.
+  const hasFreeParentSlot = parents.length < 2;
 
   // All unions where this person is a spouse, with their marriage/divorce
   // events and partner identity.
@@ -109,36 +135,60 @@ export default async function EditPersonPage({
     return ay - by;
   });
 
-  const otherPersons = await prisma.person.findMany({
-    where: { treeId: person.treeId, NOT: { id } },
-    orderBy: [{ surname: "asc" }, { givenName: "asc" }],
-    select: { id: true, givenName: true, surname: true },
+  const otherPersons = await loadPersonOptions(person.treeId, {
+    excludeId: id,
+  });
+
+  const years = lifespan({
+    birthYear: birth?.date?.getFullYear() ?? null,
+    deathYear: death?.date?.getFullYear() ?? null,
+    isLiving: person.isLiving,
   });
 
   return (
-    <main className="container mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <Link
-          href="/persons"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Retour à la liste
-        </Link>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/persons/${person.id}/tree`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <Network className="h-4 w-4 mr-1.5" />
-            Voir l&apos;arbre
-          </Link>
-          <DeleteButton id={person.id} label={displayName(person)} />
-        </div>
-      </div>
-
-      <h1 className="text-3xl font-semibold tracking-tight mb-8">
-        {displayName(person)}
-      </h1>
+    <main className="container mx-auto max-w-3xl px-4 sm:px-6 py-8">
+      <PageHeader
+        backHref={`/?person=${person.id}`}
+        backLabel="Retour à l'arbre"
+        eyebrow={
+          <span className="inline-flex items-center gap-2 normal-case">
+            <Badge
+              variant={
+                person.sex === "MALE"
+                  ? "male"
+                  : person.sex === "FEMALE"
+                    ? "female"
+                    : "neutral"
+              }
+            >
+              {person.sex === "MALE"
+                ? "Masculin"
+                : person.sex === "FEMALE"
+                  ? "Féminin"
+                  : "Sexe inconnu"}
+            </Badge>
+            {person.isLiving && <Badge variant="brand">Vivant·e</Badge>}
+            {years && (
+              <span className="tabular-nums text-muted-foreground">
+                {years}
+              </span>
+            )}
+          </span>
+        }
+        title={displayName(person)}
+        actions={
+          <>
+            <Link
+              href={`/persons/${person.id}/tree`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <Network className="h-4 w-4" />
+              Voir l&apos;arbre
+            </Link>
+            <DeleteButton id={person.id} label={displayName(person)} />
+          </>
+        }
+      />
 
       <MultiStepPersonForm
         action={updatePerson.bind(null, person.id)}
@@ -175,8 +225,51 @@ export default async function EditPersonPage({
         parentBId={familyOfBirth?.spouseBId ?? null}
         otherPersons={otherPersons}
         showParents
+        parentsHint={
+          <>
+            Rattache ici des personnes déjà créées. Pour créer un père ou une
+            mère qui n&apos;existe pas encore, utilise la section
+            &laquo;&nbsp;Parents&nbsp;&raquo; plus bas.
+          </>
+        }
         cancelHref="/persons"
       />
+
+      <RelationsSection title="Parents" id="parents">
+        <p className="text-xs text-muted-foreground mb-3">
+          Ajoute directement un père ou une mère : la personne est créée puis
+          rattachée automatiquement comme parent (et les frères et sœurs déjà
+          enregistrés en héritent).
+        </p>
+        <ul className="rounded-lg border divide-y bg-surface overflow-hidden">
+          {(father || hasFreeParentSlot) && (
+            <ParentRow
+              label="Père"
+              person={father}
+              addHref={`/persons/new?parentOf=${person.id}&role=father`}
+              addLabel="Ajouter le père"
+            />
+          )}
+          {(mother || hasFreeParentSlot) && (
+            <ParentRow
+              label="Mère"
+              person={mother}
+              addHref={`/persons/new?parentOf=${person.id}&role=mother`}
+              addLabel="Ajouter la mère"
+            />
+          )}
+          {otherParents.map((p) => (
+            <ParentRow key={p.id} label="Autre parent" person={p} />
+          ))}
+        </ul>
+        {!hasFreeParentSlot && (!father || !mother) && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Les deux emplacements de parents sont occupés. Renseigne le sexe
+            des personnes ci-dessus pour qu&apos;elles s&apos;affichent comme
+            père et mère.
+          </p>
+        )}
+      </RelationsSection>
 
       <RelationsSection title="Unions">
         <div className="flex items-baseline justify-between mb-3">
@@ -196,7 +289,7 @@ export default async function EditPersonPage({
             Aucune union enregistrée.
           </p>
         ) : (
-          <ul className="rounded-md border divide-y bg-background">
+          <ul className="rounded-lg border divide-y bg-surface overflow-hidden">
             {unions.map((u) => {
               const partner =
                 u.spouseAId === person.id ? u.spouseB : u.spouseA;
@@ -259,7 +352,7 @@ export default async function EditPersonPage({
             </span>
           </p>
         ) : (
-          <ul className="rounded-md border divide-y bg-background">
+          <ul className="rounded-lg border divide-y bg-surface overflow-hidden">
             {childLinks.map((cl) => {
               const otherParent =
                 cl.family.spouseA?.id === person.id
@@ -320,7 +413,7 @@ export default async function EditPersonPage({
               : "Les frères et sœurs apparaîtront ici dès qu'au moins un parent ou un frère/sœur sera défini."}
           </p>
         ) : (
-          <ul className="rounded-md border divide-y bg-background">
+          <ul className="rounded-lg border divide-y bg-surface overflow-hidden">
             {siblings.map((fc) => (
               <li key={fc.id}>
                 <Link
@@ -343,17 +436,90 @@ export default async function EditPersonPage({
 
 function RelationsSection({
   title,
+  id,
   children,
 }: {
   title: string;
+  id?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-10 rounded-lg border bg-card p-5 shadow-sm">
-      <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-3">
+    <section
+      id={id}
+      className={cn(
+        "mt-8 rounded-xl border bg-card p-5 shadow-sm",
+        // Offset the sticky header when linked to via #anchor.
+        id && "scroll-mt-20",
+      )}
+    >
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
         {title}
       </h2>
       {children}
     </section>
+  );
+}
+
+/**
+ * One père / mère row: either the parent (linking to their fiche) or an
+ * empty slot with the shortcut that creates the parent and attaches them.
+ * `addHref` / `addLabel` are only read when `person` is null.
+ */
+function ParentRow({
+  label,
+  person,
+  addHref,
+  addLabel,
+}: {
+  label: string;
+  person: {
+    id: string;
+    givenName: string | null;
+    surname: string | null;
+  } | null;
+  addHref?: string;
+  addLabel?: string;
+}) {
+  return (
+    <li>
+      {person ? (
+        <Link
+          href={`/persons/${person.id}/edit`}
+          className="flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50"
+        >
+          <span className="min-w-0">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground mr-2">
+              {label}
+            </span>
+            <span className="font-medium">
+              {displayNameSurnameFirst(person)}
+            </span>
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0">
+            Modifier →
+          </span>
+        </Link>
+      ) : (
+        <div className="flex items-center justify-between px-3 py-2 text-sm">
+          <span className="min-w-0">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground mr-2">
+              {label}
+            </span>
+            <span className="text-muted-foreground italic">
+              Non renseigné
+            </span>
+          </span>
+          {addHref && (
+            <Link
+              href={addHref}
+              className="text-sm text-primary hover:underline inline-flex items-center shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5 mr-0.5" />
+              {addLabel}
+            </Link>
+          )}
+        </div>
+      )}
+    </li>
   );
 }

@@ -31,7 +31,7 @@ export function EventPlaceInput({
           name={`${fieldPrefix}.placeCountryCode`}
           value={countryCode}
           onChange={(e) => setCountryCode(e.target.value)}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+          className="flex h-9 w-full rounded-lg border border-input bg-surface px-3 py-1 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/40"
         >
           {COUNTRIES.map((c) => (
             <option key={c.code} value={c.code}>

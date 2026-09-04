@@ -54,3 +54,39 @@ export function groupBySurname<T extends PersonNamed>(
       ),
     ]);
 }
+
+/** Lowercase + strip diacritics, so "Chazeau" matches "chazéau". */
+export function normalizeSearch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+export type PersonSearchable = PersonNamed & {
+  marriedName?: string | null;
+  nickname?: string | null;
+};
+
+/** Haystack for name searches: all the name variants of a person. */
+export function personSearchKey(p: PersonSearchable): string {
+  return normalizeSearch(
+    [p.givenName, p.surname, p.marriedName, p.nickname]
+      .filter(Boolean)
+      .join(" "),
+  );
+}
+
+/**
+ * "1897 – 1962" / "1954 –" (living) / null when no year is known. Used on
+ * cards, combobox rows and the pedigree chart to disambiguate homonyms.
+ */
+export function lifespan(p: {
+  birthYear?: number | null;
+  deathYear?: number | null;
+  isLiving?: boolean;
+}): string | null {
+  if (p.birthYear == null && p.deathYear == null) return null;
+  const right = p.isLiving ? "" : (p.deathYear?.toString() ?? "?");
+  return `${p.birthYear ?? "?"} – ${right}`.trim();
+}

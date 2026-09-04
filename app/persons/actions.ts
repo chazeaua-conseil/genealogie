@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   EMPTY_EVENT_INPUT,
+  attachAsParent,
   attachExistingChildren,
   linkAsSibling,
   readEvent,
@@ -59,6 +60,17 @@ async function _createPerson(formData: FormData) {
   const siblingRef = siblingOfRaw
     ? await prisma.person.findFirst({
         where: { id: siblingOfRaw, treeId: tree.id },
+      })
+    : null;
+
+  // Optional: create this person as a parent (père / mère) of an existing
+  // person, straight from that person's fiche. Independent from the three
+  // parentage branches below, which set the *new* person's own parents.
+  const parentOfRaw = (formData.get("parentOf") ?? "").toString().trim();
+  const parentOfChild = parentOfRaw
+    ? await prisma.person.findFirst({
+        where: { id: parentOfRaw, treeId: tree.id },
+        select: { id: true },
       })
     : null;
 
@@ -121,6 +133,14 @@ async function _createPerson(formData: FormData) {
   } else {
     const parents = readParents(formData);
     await setParents(newPerson.id, tree.id, parents.A, parents.B, userId);
+  }
+
+  // Attach the new person as a parent of the person whose fiche started
+  // this flow, and send the user back to that fiche.
+  if (parentOfChild) {
+    await attachAsParent(newPerson.id, parentOfChild.id, tree.id, userId);
+    revalidatePath(`/persons/${parentOfChild.id}/edit`);
+    redirectAfter = `/persons/${parentOfChild.id}/edit`;
   }
 
   // Optional: link existing persons as children of the new person.

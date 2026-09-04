@@ -3,6 +3,8 @@ import { TreeDeciduous } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MainNav } from "@/components/main-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function initials(name?: string | null) {
   if (!name) return "?";
@@ -24,37 +26,29 @@ export async function SiteHeader() {
   const authed = Boolean(session?.user);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/65">
-      <div className="container mx-auto max-w-6xl flex h-14 items-center justify-between px-6">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto max-w-6xl flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
         <Link
-          href={authed ? "/persons" : "/"}
-          className="flex items-center gap-2 font-semibold tracking-tight"
+          href="/"
+          className="flex items-center gap-2 font-semibold tracking-tight shrink-0"
         >
-          <TreeDeciduous className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
-          <span>Généalogie Chazeau</span>
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-subtle text-accent-foreground">
+            <TreeDeciduous className="h-4.5 w-4.5" />
+          </span>
+          <span className="hidden sm:inline">Généalogie Chazeau</span>
         </Link>
 
         {authed ? (
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <Link
-              href="/persons"
-              className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors px-2 py-1"
-            >
-              Mon arbre
-            </Link>
-            <Link
-              href="/tree/members"
-              className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors px-2 py-1"
-            >
-              Membres
-            </Link>
-            <div className="flex items-center gap-3 pl-4 ml-2 border-l">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <MainNav />
+            <div className="flex items-center gap-1.5 border-l border-border/70 pl-2 sm:pl-3">
+              <ThemeToggle />
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="text-[10px] font-medium">
                   {initials(session?.user?.name || session?.user?.email)}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline text-xs text-muted-foreground max-w-[160px] truncate">
+              <span className="hidden lg:inline text-xs text-muted-foreground max-w-[150px] truncate">
                 {session?.user?.email}
               </span>
               <form
@@ -68,8 +62,10 @@ export async function SiteHeader() {
                 </Button>
               </form>
             </div>
-          </nav>
-        ) : null}
+          </div>
+        ) : (
+          <ThemeToggle />
+        )}
       </div>
     </header>
   );

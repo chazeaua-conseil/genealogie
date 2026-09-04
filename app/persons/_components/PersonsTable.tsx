@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import { Network, Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
@@ -16,8 +15,11 @@ import {
 import {
   displayNameSurnameFirst,
   groupBySurname,
+  normalizeSearch,
+  personSearchKey,
   NO_SURNAME_KEY,
 } from "@/lib/person-display";
+import { Badge } from "@/components/ui/badge";
 
 type RowEvent = {
   date: Date | null;
@@ -38,22 +40,11 @@ export type PersonRow = {
 
 const sexConfig: Record<
   PersonRow["sex"],
-  { label: string; className: string }
+  { label: string; variant: "male" | "female" | "neutral" }
 > = {
-  MALE: {
-    label: "Masculin",
-    className:
-      "bg-blue-50 text-blue-700 ring-blue-700/15 dark:bg-blue-950/40 dark:text-blue-300",
-  },
-  FEMALE: {
-    label: "Féminin",
-    className:
-      "bg-pink-50 text-pink-700 ring-pink-700/15 dark:bg-pink-950/40 dark:text-pink-300",
-  },
-  UNKNOWN: {
-    label: "Inconnu",
-    className: "bg-muted text-muted-foreground ring-foreground/10",
-  },
+  MALE: { label: "Masculin", variant: "male" },
+  FEMALE: { label: "Féminin", variant: "female" },
+  UNKNOWN: { label: "Inconnu", variant: "neutral" },
 };
 
 function initials(p: { givenName: string | null; surname: string | null }) {
@@ -85,46 +76,30 @@ function computeAge(p: PersonRow, today: Date): number | null {
   return age;
 }
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-}
-
-function searchKey(p: PersonRow): string {
-  return normalize(
-    [p.givenName, p.surname, p.marriedName, p.nickname]
-      .filter(Boolean)
-      .join(" "),
-  );
-}
-
 export function PersonsTable({ persons }: { persons: PersonRow[] }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     if (!query.trim()) return persons;
-    const q = normalize(query.trim());
-    return persons.filter((p) => searchKey(p).includes(q));
+    const q = normalizeSearch(query.trim());
+    return persons.filter((p) => personSearchKey(p).includes(q));
   }, [persons, query]);
 
   const grouped = useMemo(() => groupBySurname(filtered), [filtered]);
 
-  // Today reference for age computation — computed once on mount, recomputed
-  // when the dataset changes (good enough for a list that's re-rendered on
-  // every page visit).
-  const today = useMemo(() => new Date(), [persons]);
+  // Today reference for age computation — fixed for the lifetime of the
+  // mounted list, which is re-rendered on every page visit anyway.
+  const today = useMemo(() => new Date(), []);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 shadow-sm">
+      <div className="flex items-center gap-3 rounded-xl border bg-card px-3.5 py-2.5 shadow-sm focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40 transition-colors">
         <Search className="h-4 w-4 text-muted-foreground shrink-0" />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher par nom, prénoms, nom marital, surnom…"
+          placeholder="Filtrer par nom, prénoms, nom marital, surnom…"
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           aria-label="Rechercher une personne"
         />
@@ -144,11 +119,11 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card p-12 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed bg-card/50 p-12 text-center text-sm text-muted-foreground">
           Aucune personne ne correspond à «&nbsp;{query}&nbsp;».
         </div>
       ) : (
-        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -235,16 +210,7 @@ export function PersonsTable({ persons }: { persons: PersonRow[] }) {
 
 function SexBadge({ sex }: { sex: PersonRow["sex"] }) {
   const c = sexConfig[sex];
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-        c.className,
-      )}
-    >
-      {c.label}
-    </span>
-  );
+  return <Badge variant={c.variant}>{c.label}</Badge>;
 }
 
 function AgeCell({ person, today }: { person: PersonRow; today: Date }) {

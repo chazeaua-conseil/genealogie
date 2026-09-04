@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
+import { loadPersonOptions } from "@/lib/person-options";
+import { PageHeader } from "@/components/page-header";
 import { UnionForm } from "../../../_components/UnionForm";
 import { createUnion } from "../actions";
 
@@ -20,34 +21,22 @@ export default async function NewUnionPage({
   const { id } = await params;
   const { person } = await requirePersonForCurrentUser(id);
 
-  const partners = await prisma.person.findMany({
-    where: { treeId: person.treeId, NOT: { id } },
-    orderBy: [{ surname: "asc" }, { givenName: "asc" }],
-    select: { id: true, givenName: true, surname: true },
-  });
+  const partners = await loadPersonOptions(person.treeId, { excludeId: id });
 
   const backHref = `/persons/${person.id}/edit`;
 
   return (
-    <main className="container mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6">
-        <Link
-          href={backHref}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Retour à {displayName(person)}
-        </Link>
-        <h1 className="text-3xl font-semibold tracking-tight mt-2">
-          Nouvelle union de {displayName(person)}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Choisis le partenaire, la nature de l&apos;union et les dates. Tu
-          pourras revenir l&apos;éditer à tout moment.
-        </p>
-      </div>
+    <main className="container mx-auto max-w-3xl px-4 sm:px-6 py-8">
+      <PageHeader
+        backHref={backHref}
+        backLabel={`Retour à ${displayName(person)}`}
+        eyebrow="Union"
+        title={`Nouvelle union de ${displayName(person)}`}
+        description="Choisis le partenaire, la nature de l'union et les dates. Tu pourras revenir l'éditer à tout moment."
+      />
 
       {partners.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed bg-card/50 p-8 text-center text-sm text-muted-foreground">
           <p>
             Aucune autre personne dans l&apos;arbre — crée d&apos;abord un
             partenaire avant de pouvoir enregistrer une union.

@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, FileText, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -24,7 +23,6 @@ export function ImportForm() {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   async function onFileChosen(file: File) {
     setPhase({ kind: "previewing" });
@@ -382,7 +380,3 @@ function IssueList({
     </div>
   );
 }
-
-// Silence unused-import warning for router in case future iterations
-// wire navigation directly from a hook here.
-void useRouter;

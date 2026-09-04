@@ -20,6 +20,17 @@ export const metadata: Metadata = {
     "Application familiale de gestion d'arbres généalogiques (privée).",
 };
 
+// Applied before first paint so the stored (or system) theme never flashes.
+const themeScript = `
+try {
+  var stored = localStorage.getItem("theme");
+  var dark = stored
+    ? stored === "dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (dark) document.documentElement.classList.add("dark");
+} catch (e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,11 +39,15 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <SiteHeader />
-        <div className="flex-1 flex flex-col">{children}</div>
+        <div className="app-backdrop flex-1 flex flex-col">{children}</div>
         <SiteFooter />
       </body>
     </html>

@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, Upload } from "lucide-react";
+import { CheckCircle2, LayoutGrid, Plus, Upload } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateDefaultTree } from "@/lib/tree";
 import { buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { PersonsTable, type PersonRow } from "./_components/PersonsTable";
 
-export default async function PersonsPage() {
+export default async function PersonsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ created?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
+
+  const { created } = await searchParams;
+  const createdCount = Number(created);
 
   const tree = await getOrCreateDefaultTree(session.user.id);
   const persons = await prisma.person.findMany({
@@ -50,45 +58,63 @@ export default async function PersonsPage() {
   });
 
   return (
-    <main className="container mx-auto max-w-6xl px-6 py-8">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{tree.name}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {persons.length} personne{persons.length > 1 ? "s" : ""}{" "}
-            enregistrée{persons.length > 1 ? "s" : ""}
-          </p>
+    <main className="container mx-auto max-w-6xl px-4 sm:px-6 py-8">
+      <PageHeader
+        eyebrow={tree.name}
+        title="Toutes les personnes"
+        description={`${persons.length} personne${persons.length > 1 ? "s" : ""} enregistrée${persons.length > 1 ? "s" : ""} dans l'arbre.`}
+        actions={
+          <>
+            <Link
+              href="/persons/import"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <Upload className="h-4 w-4" />
+              Importer un CSV
+            </Link>
+            <Link
+              href="/persons/bulk"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Saisie multiple
+            </Link>
+            <Link href="/persons/new" className={buttonVariants()}>
+              <Plus className="h-4 w-4" />
+              Nouvelle personne
+            </Link>
+          </>
+        }
+      />
+
+      {createdCount > 0 && (
+        <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-brand/30 bg-brand-subtle/50 px-4 py-3 text-sm">
+          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+          <span>
+            {createdCount} personne{createdCount > 1 ? "s" : ""} ajoutée
+            {createdCount > 1 ? "s" : ""} à l&apos;arbre.
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/persons/import"
-            className={buttonVariants({ variant: "outline", size: "default" })}
-          >
-            <Upload className="h-4 w-4 mr-1.5" />
-            Importer un CSV
-          </Link>
-          <Link
-            href="/persons/new"
-            className={buttonVariants({ size: "default" })}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Nouvelle personne
-          </Link>
-        </div>
-      </header>
+      )}
 
       {persons.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card p-16 text-center">
+        <div className="rounded-xl border border-dashed bg-card/50 p-16 text-center">
           <p className="text-muted-foreground mb-4">
             Aucune personne dans cet arbre pour le moment.
           </p>
-          <Link
-            href="/persons/new"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Ajouter la première
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Link href="/persons/new" className={buttonVariants()}>
+              <Plus className="h-4 w-4" />
+              Ajouter la première
+            </Link>
+            <Link
+              href="/persons/bulk"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Saisie multiple
+            </Link>
+          </div>
         </div>
       ) : (
         <PersonsTable persons={rows} />

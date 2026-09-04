@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,17 +11,18 @@ import {
   countryCodeByName,
   DEFAULT_COUNTRY_CODE,
 } from "@/lib/countries";
+import { displayNameSurnameFirst } from "@/lib/person-display";
 import {
-  displayNameSurnameFirst,
-  groupBySurname,
-} from "@/lib/person-display";
+  PersonCombobox,
+  type PersonOption,
+} from "@/components/person-combobox";
 import { EventPlaceInput } from "./EventPlaceInput";
 
 const inputSelectClass =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs";
+  "flex h-9 w-full rounded-lg border border-input bg-surface px-3 py-1 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/40";
 
 const textareaClass =
-  "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs";
+  "flex w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/40";
 
 type PersonInit = {
   givenName: string | null;
@@ -40,12 +41,6 @@ type EventInit = {
     country: string | null;
   } | null;
 } | null;
-
-type PersonSelect = {
-  id: string;
-  givenName: string | null;
-  surname: string | null;
-};
 
 const emptyPerson: PersonInit = {
   givenName: null,
@@ -78,6 +73,8 @@ export function MultiStepPersonForm({
   showParents = true,
   siblingOf = null,
   childOfFamilyId = null,
+  parentOf = null,
+  parentsHint = null,
   cancelHref = "/persons",
   submitLabel = "Enregistrer",
 }: {
@@ -87,10 +84,12 @@ export function MultiStepPersonForm({
   death?: EventInit;
   parentAId?: string | null;
   parentBId?: string | null;
-  otherPersons: PersonSelect[];
+  otherPersons: PersonOption[];
   showParents?: boolean;
   siblingOf?: string | null;
   childOfFamilyId?: string | null;
+  parentOf?: string | null;
+  parentsHint?: React.ReactNode;
   cancelHref?: string;
   submitLabel?: string;
 }) {
@@ -124,31 +123,21 @@ export function MultiStepPersonForm({
   const [stepIdx, setStepIdx] = useState(0);
   const [isLiving, setIsLiving] = useState(person.isLiving);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
-  // Re-render dropdown by clearing its selected value when changes happen.
-  const [childPickerNonce, setChildPickerNonce] = useState(0);
 
   // Lookup by id for the children chips display.
   const personById = useMemo(() => {
-    const m = new Map<string, PersonSelect>();
+    const m = new Map<string, PersonOption>();
     for (const p of otherPersons) m.set(p.id, p);
     return m;
   }, [otherPersons]);
 
-  // Available pool for the child picker (excludes already-selected + parents).
-  const availableChildren = useMemo(() => {
-    const exclude = new Set<string>(selectedChildIds);
-    if (parentAId) exclude.add(parentAId);
-    if (parentBId) exclude.add(parentBId);
-    return otherPersons.filter((p) => !exclude.has(p.id));
-  }, [otherPersons, selectedChildIds, parentAId, parentBId]);
-
-  const childGroups = useMemo(
-    () => groupBySurname(availableChildren),
-    [availableChildren],
-  );
-  const parentGroups = useMemo(
-    () => groupBySurname(otherPersons),
-    [otherPersons],
+  // Ids the child picker must not offer: already picked, or a parent.
+  const excludedChildIds = useMemo(
+    () =>
+      [...selectedChildIds, parentAId, parentBId].filter(
+        (v): v is string => Boolean(v),
+      ),
+    [selectedChildIds, parentAId, parentBId],
   );
 
   const current = steps[stepIdx];
@@ -171,6 +160,9 @@ export function MultiStepPersonForm({
           name="childOfFamily"
           defaultValue={childOfFamilyId}
         />
+      )}
+      {parentOf && (
+        <input type="hidden" name="parentOf" defaultValue={parentOf} />
       )}
 
       <StepIndicator
@@ -294,29 +286,35 @@ export function MultiStepPersonForm({
         <div hidden={current.key !== "family"} className="space-y-6">
           <Card>
             <SectionHeader title="Parents" />
+            {parentsHint && (
+              <p className="text-xs text-muted-foreground -mt-2">
+                {parentsHint}
+              </p>
+            )}
             {otherPersons.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Crée d&apos;abord d&apos;autres personnes pour pouvoir les
-                rattacher comme parents.
+                Aucune autre personne disponible pour l&apos;instant.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Parent 1" htmlFor="parentAId">
-                  <PersonsSelect
+                  <PersonCombobox
                     id="parentAId"
                     name="parentAId"
-                    defaultValue={parentAId ?? ""}
-                    placeholder="— Aucun —"
-                    groups={parentGroups}
+                    persons={otherPersons}
+                    defaultPerson={personById.get(parentAId ?? "") ?? null}
+                    excludeIds={parentBId ? [parentBId] : undefined}
+                    placeholder="Tape un nom…"
                   />
                 </Field>
                 <Field label="Parent 2" htmlFor="parentBId">
-                  <PersonsSelect
+                  <PersonCombobox
                     id="parentBId"
                     name="parentBId"
-                    defaultValue={parentBId ?? ""}
-                    placeholder="— Aucun —"
-                    groups={parentGroups}
+                    persons={otherPersons}
+                    defaultPerson={personById.get(parentBId ?? "") ?? null}
+                    excludeIds={parentAId ? [parentAId] : undefined}
+                    placeholder="Tape un nom…"
                   />
                 </Field>
               </div>
@@ -376,36 +374,18 @@ export function MultiStepPersonForm({
                   })}
                 </div>
 
-                <div className="flex gap-2">
-                  <select
-                    key={childPickerNonce}
-                    defaultValue=""
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (id) {
-                        setSelectedChildIds((cur) => [...cur, id]);
-                        setChildPickerNonce((n) => n + 1);
-                      }
-                    }}
-                    className={cn(inputSelectClass, "flex-1")}
-                    disabled={availableChildren.length === 0}
-                  >
-                    <option value="" disabled>
-                      {availableChildren.length === 0
-                        ? "Plus aucune personne à ajouter"
-                        : "— Choisir une personne —"}
-                    </option>
-                    {childGroups.map(([surname, items]) => (
-                      <optgroup key={surname} label={surname}>
-                        {items.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {displayNameSurnameFirst(p)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
+                <PersonCombobox
+                  persons={otherPersons}
+                  excludeIds={excludedChildIds}
+                  clearOnSelect
+                  onSelect={(p) =>
+                    setSelectedChildIds((cur) =>
+                      cur.includes(p.id) ? cur : [...cur, p.id],
+                    )
+                  }
+                  placeholder="Chercher une personne à rattacher…"
+                  emptyMessage="Plus aucune personne à ajouter"
+                />
                 <p className="text-[11px] text-muted-foreground">
                   Comportement : si l&apos;enfant n&apos;a pas de famille de
                   naissance, il sera rattaché à cette personne. S&apos;il a
@@ -514,8 +494,8 @@ function StepIndicator({
             <li
               aria-hidden
               className={cn(
-                "flex-1 h-px mx-2",
-                i < current ? "bg-primary/30" : "bg-muted",
+                "flex-1 h-0.5 mx-2 rounded-full transition-colors",
+                i < current ? "bg-primary/40" : "bg-border",
               )}
             />
           )}
@@ -535,7 +515,7 @@ function Card({
   return (
     <div
       className={cn(
-        "rounded-lg border bg-card p-5 space-y-4 shadow-sm",
+        "rounded-xl border bg-card p-5 space-y-4 shadow-sm",
         hidden && "hidden",
       )}
     >
@@ -566,39 +546,5 @@ function Field({
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
     </div>
-  );
-}
-
-function PersonsSelect({
-  id,
-  name,
-  defaultValue,
-  placeholder,
-  groups,
-}: {
-  id: string;
-  name: string;
-  defaultValue: string;
-  placeholder: string;
-  groups: Array<[string, PersonSelect[]]>;
-}) {
-  return (
-    <select
-      id={id}
-      name={name}
-      defaultValue={defaultValue}
-      className={inputSelectClass}
-    >
-      <option value="">{placeholder}</option>
-      {groups.map(([surname, items]) => (
-        <optgroup key={surname} label={surname}>
-          {items.map((p) => (
-            <option key={p.id} value={p.id}>
-              {displayNameSurnameFirst(p)}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
   );
 }
