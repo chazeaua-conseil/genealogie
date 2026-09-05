@@ -7,16 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateDefaultTree } from "@/lib/tree";
 import { parseImportDate } from "@/lib/csv-import";
 import { EMPTY_EVENT_INPUT, upsertEvent, type EventInput } from "../_lib/form";
-
-export type BulkRowError = { row: number; message: string };
-
-export type BulkState = {
-  status: "idle" | "error";
-  message?: string;
-  rowErrors?: BulkRowError[];
-};
-
-export const BULK_IDLE: BulkState = { status: "idle" };
+import type { BulkRowError, BulkState } from "./types";
 
 type ParsedRow = {
   index: number;

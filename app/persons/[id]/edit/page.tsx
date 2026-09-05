@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Network, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, Network, Pencil, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { requirePersonForCurrentUser } from "@/lib/access";
@@ -33,10 +33,13 @@ const familyTypeLabel: Record<
 
 export default async function EditPersonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ parentLink?: string; person?: string }>;
 }) {
   const { id } = await params;
+  const { parentLink, person: createdPersonId } = await searchParams;
   const { person } = await requirePersonForCurrentUser(id);
 
   const events = await prisma.event.findMany({
@@ -234,6 +237,31 @@ export default async function EditPersonPage({
         }
         cancelHref="/persons"
       />
+
+      {parentLink === "full" && (
+        <div className="mt-8 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+          <div>
+            <p className="font-medium">Parent créé mais non rattaché.</p>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              Les deux emplacements de parents de {displayName(person)} étaient
+              déjà occupés — la page était probablement ouverte depuis un
+              moment. La personne a bien été créée&nbsp;;{" "}
+              {createdPersonId ? (
+                <Link
+                  href={`/persons/${createdPersonId}/edit`}
+                  className="text-primary hover:underline"
+                >
+                  ouvre sa fiche
+                </Link>
+              ) : (
+                <span>retrouve-la dans la liste</span>
+              )}{" "}
+              ou libère un emplacement ci-dessous avant de recommencer.
+            </p>
+          </div>
+        </div>
+      )}
 
       <RelationsSection title="Parents" id="parents">
         <p className="text-xs text-muted-foreground mb-3">

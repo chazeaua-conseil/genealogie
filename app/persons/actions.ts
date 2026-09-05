@@ -136,11 +136,20 @@ async function _createPerson(formData: FormData) {
   }
 
   // Attach the new person as a parent of the person whose fiche started
-  // this flow, and send the user back to that fiche.
+  // this flow, and send the user back to that fiche. A family that filled up
+  // meanwhile is reported there rather than thrown away as an error page.
   if (parentOfChild) {
-    await attachAsParent(newPerson.id, parentOfChild.id, tree.id, userId);
+    const result = await attachAsParent(
+      newPerson.id,
+      parentOfChild.id,
+      tree.id,
+      userId,
+    );
     revalidatePath(`/persons/${parentOfChild.id}/edit`);
-    redirectAfter = `/persons/${parentOfChild.id}/edit`;
+    redirectAfter =
+      result === "slots-full"
+        ? `/persons/${parentOfChild.id}/edit?parentLink=full&person=${newPerson.id}`
+        : `/persons/${parentOfChild.id}/edit`;
   }
 
   // Optional: link existing persons as children of the new person.

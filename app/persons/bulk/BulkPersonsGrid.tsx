@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { COUNTRIES, DEFAULT_COUNTRY_CODE } from "@/lib/countries";
-import { BULK_IDLE, createPersonsBatch } from "./actions";
+import { createPersonsBatch } from "./actions";
+import { BULK_IDLE } from "./types";
 
 type Sex = "MALE" | "FEMALE" | "UNKNOWN";
 

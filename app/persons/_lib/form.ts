@@ -440,21 +440,25 @@ export async function linkAsSibling(
   });
 }
 
+export type AttachParentResult = "linked" | "already-parent" | "slots-full";
+
 /**
  * Links an existing person as a parent of `childId`, filling a free spouse
  * slot in the child's family-of-birth (creating that family when the child
  * has none). Used by the "Ajouter le père / la mère" flow on a person's
  * fiche, where the new parent is created first and attached right after.
  *
- * Idempotent when the person is already a parent of the child. Throws when
- * both parent slots are taken — the UI hides the entry point in that case.
+ * Returns "slots-full" rather than throwing when both parent slots are
+ * already taken: the page that opened the flow may have gone stale (another
+ * tab, a back navigation), and losing a freshly created person over that
+ * would be worse than reporting it.
  */
 export async function attachAsParent(
   parentId: string,
   childId: string,
   treeId: string,
   userId: string,
-) {
+): Promise<AttachParentResult> {
   if (parentId === childId) {
     throw new Error("Une personne ne peut pas être son propre parent.");
   }
@@ -471,24 +475,26 @@ export async function attachAsParent(
     await prisma.familyChild.create({
       data: { familyId: family.id, childId },
     });
-    return;
+    return "linked";
   }
 
   const f = childFC.family;
-  if (f.spouseAId === parentId || f.spouseBId === parentId) return;
+  if (f.spouseAId === parentId || f.spouseBId === parentId) {
+    return "already-parent";
+  }
   if (!f.spouseAId) {
     await prisma.family.update({
       where: { id: f.id },
       data: { spouseAId: parentId },
     });
-  } else if (!f.spouseBId) {
+    return "linked";
+  }
+  if (!f.spouseBId) {
     await prisma.family.update({
       where: { id: f.id },
       data: { spouseBId: parentId },
     });
-  } else {
-    throw new Error(
-      "Les deux parents de cette personne sont déjà renseignés.",
-    );
+    return "linked";
   }
+  return "slots-full";
 }
